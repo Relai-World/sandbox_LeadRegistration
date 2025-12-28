@@ -8,6 +8,8 @@ import { insertPropertySchema, insertLeadSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { supabase } from "./supabase";
 import PDFDocument from "pdfkit";
+import path from "path";
+import fs from "fs";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -1824,10 +1826,19 @@ export async function registerRoutes(
         }
       };
 
+      // Helper function to load local template image
+      const loadLocalTemplate = (filename: string): string | null => {
+        const templatePath = path.join(process.cwd(), 'public', 'pdf-templates', filename);
+        if (fs.existsSync(templatePath)) {
+          return templatePath;
+        }
+        return null;
+      };
+
       // Create PDF document - Landscape for comparison table layout
       const doc = new PDFDocument({ 
         size: [842, 595], // A4 Landscape
-        margins: { top: 30, bottom: 30, left: 30, right: 30 },
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
         bufferPages: true
       });
 
@@ -1837,6 +1848,9 @@ export async function registerRoutes(
 
       // Pipe PDF to response
       doc.pipe(res);
+
+      const pageWidth = 842;
+      const pageHeight = 595;
 
       // Helper function to safely get value
       const getValue = (obj: any, ...keys: string[]): string => {
@@ -1857,265 +1871,348 @@ export async function registerRoutes(
         if (!value || value === 'N/A' || value === '---') return 'N/A';
         const num = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
         if (isNaN(num)) return String(value);
-        if (num >= 10000000) return `${(num / 10000000).toFixed(1)}Cr`;
-        if (num >= 100000) return `${(num / 100000).toFixed(1)}Lac`;
+        if (num >= 10000000) return `${(num / 10000000).toFixed(2)} Cr`;
+        if (num >= 100000) return `${(num / 100000).toFixed(2)} Lac`;
         return num.toLocaleString('en-IN');
       };
 
       // ==================== SLIDE 1: Cover Page ====================
-      // Try to fetch cover image from Supabase Storage
       const coverImage = await fetchImageFromStorage('property_images', 'images/slide1_cover.png');
+      const localCover = loadLocalTemplate('cover_bg.png');
       
       if (coverImage) {
         doc.image(coverImage, 0, 0, { width: 842, height: 595 });
+      } else if (localCover) {
+        doc.image(localCover, 0, 0, { width: 842, height: 595 });
       } else {
-        // Fallback: Create styled cover page
-        // Blue background header area
         doc.rect(0, 0, 842, 595).fill('#ffffff');
         doc.rect(30, 80, 782, 180).fillAndStroke('#3B5998', '#3B5998');
-        
-        // Logo area (top right)
-        doc.fontSize(28).font('Helvetica-Bold').fillColor('#3B5998')
-           .text('relai.', 720, 30);
-        doc.fontSize(10).font('Helvetica').fillColor('#666666')
-           .text('for right home', 720, 55);
-        
-        // Main title
-        doc.fontSize(32).font('Helvetica-Bold').fillColor('#00FF00')
-           .text('RELAI', 260, 150);
-        doc.fontSize(32).font('Helvetica-Bold').fillColor('#ffffff')
-           .text(' RIGHT HOME REPORT', 340, 150);
-        
-        // Website
-        doc.fontSize(14).font('Helvetica').fillColor('#ffffff')
-           .text('www.relai.world', 260, 200);
-        
-        // Footer logos placeholder
-        doc.fontSize(10).font('Helvetica').fillColor('#666666')
-           .text('TS RERA', 50, 530);
-        
-        doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998')
-           .text('r.', 770, 530);
+        doc.fontSize(28).font('Helvetica-Bold').fillColor('#3B5998').text('relai.', 720, 30);
+        doc.fontSize(10).font('Helvetica').fillColor('#666666').text('for right home', 720, 55);
+        doc.fontSize(32).font('Helvetica-Bold').fillColor('#00FF00').text('RELAI', 260, 150);
+        doc.fontSize(32).font('Helvetica-Bold').fillColor('#ffffff').text(' RIGHT HOME REPORT', 340, 150);
+        doc.fontSize(14).font('Helvetica').fillColor('#ffffff').text('www.relai.world', 260, 200);
       }
 
       // ==================== SLIDE 2: Property Selection ====================
       doc.addPage();
       
       const selectionImage = await fetchImageFromStorage('property_images', 'images/slide2_selection.png');
+      const localSelection = loadLocalTemplate('selection_bg.png');
       
       if (selectionImage) {
         doc.image(selectionImage, 0, 0, { width: 842, height: 595 });
+      } else if (localSelection) {
+        doc.image(localSelection, 0, 0, { width: 842, height: 595 });
       } else {
-        // Fallback: Create property selection slide
         doc.rect(0, 0, 842, 595).fill('#f5f5f5');
-        
-        // Left property card (grayed)
-        doc.roundedRect(100, 150, 180, 250, 10).fillAndStroke('#e0e0e0', '#cccccc');
-        doc.fontSize(12).font('Helvetica').fillColor('#999999')
-           .text('Property 1', 150, 320);
-        
-        // Center property card (highlighted with blue border)
         doc.roundedRect(311, 120, 220, 300, 10).fillAndStroke('#ffffff', '#3B5998');
-        doc.roundedRect(371, 380, 100, 40, 20).fill('#3B5998');
-        doc.fontSize(18).font('Helvetica-Bold').fillColor('#ffffff')
-           .text('Selected', 388, 390);
-        
-        // Right property card (grayed)
-        doc.roundedRect(562, 150, 180, 250, 10).fillAndStroke('#e0e0e0', '#cccccc');
-        doc.fontSize(12).font('Helvetica').fillColor('#999999')
-           .text('Property 3', 612, 320);
-        
-        // Website footer
-        doc.fontSize(12).font('Helvetica').fillColor('#666666')
-           .text('www.relai.world', 50, 550);
-        
-        doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998')
-           .text('r.', 780, 550);
+        doc.fontSize(18).font('Helvetica-Bold').fillColor('#3B5998').text('Selected Properties', 340, 250);
       }
 
-      // ==================== SLIDE 3+: Dynamic Property Comparison ====================
-      doc.addPage();
-      
-      // Page dimensions for landscape A4
-      const pageWidth = 842;
-      const pageHeight = 595;
-      const margin = 30;
-      const usableWidth = pageWidth - (margin * 2);
-      
-      // Header
-      doc.rect(0, 0, pageWidth, 60).fill('#3B5998');
-      doc.fontSize(18).font('Helvetica-Bold').fillColor('#ffffff')
-         .text('COMPARE', margin + 10, 20);
-      doc.fontSize(18).font('Helvetica').fillColor('#ffffff')
-         .text('PROPERTY', margin + 110, 20);
-      doc.fontSize(10).font('Helvetica').fillColor('#ffffff')
-         .text('www.relai.world', pageWidth - 140, 25);
-      
-      // Calculate column widths
-      const labelColWidth = 120;
-      const numProperties = Math.min(enrichedProjects.length, 3); // Max 3 properties per page
-      const propertyColWidth = (usableWidth - labelColWidth) / numProperties;
-      
-      // Property header cards (blue background with property info)
-      let xPos = margin + labelColWidth;
-      const headerY = 70;
-      const headerHeight = 80;
-      
-      // Draw property header cards
-      enrichedProjects.slice(0, 3).forEach((property, idx) => {
-        // Blue card background
-        doc.rect(xPos + 5, headerY, propertyColWidth - 10, headerHeight)
-           .fillAndStroke('#3B5998', '#3B5998');
-        
-        // Property name
-        const projectName = getValue(property, 'projectname', 'projectName');
-        const builderName = getValue(property, 'buildername', 'builderName');
-        
-        doc.fontSize(11).font('Helvetica-Bold').fillColor('#ffffff')
-           .text(projectName.substring(0, 20), xPos + 15, headerY + 10, { width: propertyColWidth - 30 });
-        doc.fontSize(8).font('Helvetica').fillColor('#e0e0e0')
-           .text(`By ${builderName.substring(0, 25)}`, xPos + 15, headerY + 50, { width: propertyColWidth - 30 });
-        
-        xPos += propertyColWidth;
-      });
-      
-      // Property comparison table
-      const tableStartY = headerY + headerHeight + 20;
-      const rowHeight = 28;
-      
-      const comparisonFields = [
-        { label: 'GRID Score', keys: ['grid_score', 'GRID_Score'] },
-        { label: 'Price Range', keys: ['priceRange', 'price_range'], format: 'price' },
-        { label: 'Price/sq ft', keys: ['price_per_sft', 'pricePerSft'], format: 'currency' },
-        { label: 'Size Range', keys: ['sqfeet', 'sizeRange', 'size_range'], suffix: ' sq.ft' },
-        { label: 'Configurations', keys: ['configurations', 'config'] },
-        { label: 'Property Type', keys: ['project_type', 'Project_Type'] },
-        { label: 'Location', keys: ['areaname', 'projectlocation', 'projectLocation'] },
-        { label: 'RERA Status', keys: ['rera_status'], default: 'Approved' },
-        { label: 'RERA Number', keys: ['rera_number', 'RERA_Number'] },
-        { label: 'Possession', keys: ['possession_date', 'possessionDate'] },
+      // ==================== PROPERTY DETAIL SLIDES (3 slides per property) ====================
+      const propertyDetailsBg = loadLocalTemplate('property_details_bg.png');
+      const propertyDetails2ColBg = loadLocalTemplate('property_details_2col_bg.png');
+
+      // Define all property fields organized by slide
+      const slideAFields = [
+        { label: 'PROJECT', keys: ['projectname', 'projectName'] },
+        { label: 'BUILDER', keys: ['buildername', 'builderName'] },
+        { label: 'AREA', keys: ['areaname', 'city', 'projectlocation'] },
+        { label: 'RERA', keys: ['rera_number', 'RERA_Number'] },
+        { label: 'PROJECT TYPE', keys: ['project_type', 'Project_Type'] },
+        { label: 'LAND AREA', keys: ['total_land_area', 'totalLandArea'] },
+        { label: 'POSSESSION DATE', keys: ['possession_date', 'possessionDate'] },
       ];
-      
-      comparisonFields.forEach((field, rowIdx) => {
-        const rowY = tableStartY + (rowIdx * rowHeight);
-        const isEvenRow = rowIdx % 2 === 0;
+
+      const slideBFieldsCol1 = [
+        { label: 'GRID Score', keys: ['grid_score', 'GRID_Score'] },
+        { label: 'Price Range', keys: ['price_range', 'priceRange'] },
+        { label: 'Price Per Sq Ft', keys: ['price_per_sft', 'pricePerSft'] },
+        { label: 'Size Range', keys: ['size_range', 'sizeRange', 'sqfeet'] },
+        { label: 'Configurations', keys: ['configurations', 'config'] },
+        { label: 'Number of Towers', keys: ['number_of_towers'] },
+        { label: 'Flats Per Floor', keys: ['number_of_flats_per_floor'] },
+        { label: 'Launch Date', keys: ['project_launch_date'] },
+      ];
+
+      const slideBFieldsCol2 = [
+        { label: 'Construction Status', keys: ['construction_status'] },
+        { label: 'Open Space', keys: ['open_space'] },
+        { label: 'Floor Rise Charges', keys: ['floor_rise_charges'] },
+        { label: 'Floor Rise Amount', keys: ['floor_rise_amount_per_floor'] },
+        { label: 'Facing Charges', keys: ['facing_charges'] },
+        { label: 'PLC Charges', keys: ['preferential_location_charges'] },
+        { label: 'Passenger Lifts', keys: ['no_of_passenger_lift'] },
+        { label: 'Visitor Parking', keys: ['visitor_parking'] },
+      ];
+
+      const slideCFieldsCol1 = [
+        { label: 'Car Parking Charges', keys: ['car_parking_charges'] },
+        { label: 'Corpus Fund', keys: ['corpus_fund'] },
+        { label: 'Maintenance Charges', keys: ['maintenance_charges'] },
+        { label: 'Club House Charges', keys: ['club_house_charges'] },
+        { label: 'GST', keys: ['gst'] },
+        { label: 'Legal Charges', keys: ['legal_charges'] },
+        { label: 'Registration Charges', keys: ['registration_charges'] },
+        { label: 'Stamp Duty', keys: ['stamp_duty'] },
+      ];
+
+      const slideCFieldsCol2 = [
+        { label: 'Total Units', keys: ['total_units'] },
+        { label: 'Units Sold', keys: ['units_sold'] },
+        { label: 'Available Units', keys: ['available_units'] },
+        { label: 'Bank Approvals', keys: ['bank_approvals'] },
+        { label: 'Amenities', keys: ['external_amenities', 'amenities'] },
+        { label: 'Connectivity', keys: ['connectivity'] },
+        { label: 'Nearby Schools', keys: ['nearby_schools'] },
+        { label: 'Nearby Hospitals', keys: ['nearby_hospitals'] },
+      ];
+
+      // Generate slides for each property
+      enrichedProjects.forEach((property, propIdx) => {
+        // ========== SLIDE A: Property Details (Overview) ==========
+        doc.addPage();
         
-        // Row background
-        doc.rect(margin, rowY, usableWidth, rowHeight)
-           .fill(isEvenRow ? '#f8f9fa' : '#ffffff');
+        if (propertyDetailsBg) {
+          doc.image(propertyDetailsBg, 0, 0, { width: 842, height: 595 });
+        } else {
+          doc.rect(0, 0, 842, 595).fill('#ffffff');
+          doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a365d').text('PROPERTY', 50, 30);
+          doc.fontSize(20).font('Helvetica').fillColor('#1a365d').text('DETAILS', 165, 30);
+          doc.moveTo(250, 40).lineTo(700, 40).dash(3, { space: 3 }).stroke('#3B5998');
+          doc.fontSize(10).font('Helvetica').fillColor('#666666').text('www.relai.world', 720, 30);
+          doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998').text('r.', 790, 550);
+        }
+
+        // Draw property details on left side
+        let yPos = 130;
+        slideAFields.forEach((field) => {
+          let value = getValue(property, ...field.keys);
+          
+          // Bullet point
+          doc.circle(70, yPos + 6, 4).fill('#3B5998');
+          doc.moveTo(74, yPos + 6).lineTo(95, yPos + 6).stroke('#3B5998');
+          
+          // Label
+          doc.fontSize(11).font('Helvetica-Bold').fillColor('#1a365d')
+             .text(field.label + ' :', 100, yPos);
+          
+          // Value
+          doc.fontSize(11).font('Helvetica').fillColor('#333333')
+             .text(value.substring(0, 40), 220, yPos, { width: 200 });
+          
+          yPos += 45;
+        });
+
+        // ========== SLIDE B: Property Details (Two Column) ==========
+        doc.addPage();
         
-        // Label column
-        doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333')
-           .text(field.label, margin + 10, rowY + 8);
-        
-        // Property value columns
-        xPos = margin + labelColWidth;
-        enrichedProjects.slice(0, 3).forEach((property) => {
-          let value = field.default || getValue(property, ...field.keys);
-          
-          // Format value based on field type
-          if (field.format === 'price') {
-            value = formatPrice(value);
-          } else if (field.format === 'currency') {
-            const num = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
-            if (!isNaN(num)) value = `${num.toLocaleString('en-IN')}/sq.ft`;
-          }
-          
-          if (field.suffix && value !== 'N/A') {
-            value = value + field.suffix;
-          }
-          
-          // Handle configurations array
+        if (propertyDetails2ColBg) {
+          doc.image(propertyDetails2ColBg, 0, 0, { width: 842, height: 595 });
+        } else {
+          doc.rect(0, 0, 842, 595).fill('#ffffff');
+          doc.roundedRect(30, 30, 782, 500, 8).stroke('#3B5998');
+          doc.moveTo(250, 40).lineTo(700, 40).dash(3, { space: 3 }).stroke('#3B5998');
+          doc.fontSize(10).font('Helvetica').fillColor('#666666').text('www.relai.world', 720, 30);
+          doc.moveTo(421, 80).lineTo(421, 480).stroke('#3B5998');
+          doc.circle(421, 80, 5).fill('#3B5998');
+          doc.circle(421, 480, 5).fill('#3B5998');
+          doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998').text('r.', 790, 550);
+        }
+
+        // Column 1
+        yPos = 100;
+        slideBFieldsCol1.forEach((field) => {
+          let value = getValue(property, ...field.keys);
           if (field.keys.includes('configurations') && Array.isArray(property.configurations)) {
-            const configs = property.configurations.map((c: any) => c.type || c).join(', ');
-            value = configs || 'N/A';
+            value = property.configurations.map((c: any) => c.type || c).slice(0, 3).join(', ') || 'N/A';
+          }
+          if (field.keys.includes('price_range')) value = formatPrice(value);
+          
+          doc.circle(55, yPos + 6, 4).fill('#3B5998');
+          doc.moveTo(59, yPos + 6).lineTo(75, yPos + 6).stroke('#3B5998');
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d').text(field.label + ':', 80, yPos);
+          doc.fontSize(10).font('Helvetica').fillColor('#333333').text(value.substring(0, 30), 80, yPos + 15, { width: 320 });
+          yPos += 45;
+        });
+
+        // Column 2
+        yPos = 100;
+        slideBFieldsCol2.forEach((field) => {
+          let value = getValue(property, ...field.keys);
+          
+          doc.circle(455, yPos + 6, 4).fill('#3B5998');
+          doc.moveTo(459, yPos + 6).lineTo(475, yPos + 6).stroke('#3B5998');
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d').text(field.label + ':', 480, yPos);
+          doc.fontSize(10).font('Helvetica').fillColor('#333333').text(value.substring(0, 30), 480, yPos + 15, { width: 320 });
+          yPos += 45;
+        });
+
+        // ========== SLIDE C: Property Details (More Details) ==========
+        doc.addPage();
+        
+        if (propertyDetails2ColBg) {
+          doc.image(propertyDetails2ColBg, 0, 0, { width: 842, height: 595 });
+        } else {
+          doc.rect(0, 0, 842, 595).fill('#ffffff');
+          doc.roundedRect(30, 30, 782, 500, 8).stroke('#3B5998');
+          doc.moveTo(250, 40).lineTo(700, 40).dash(3, { space: 3 }).stroke('#3B5998');
+          doc.fontSize(10).font('Helvetica').fillColor('#666666').text('www.relai.world', 720, 30);
+          doc.moveTo(421, 80).lineTo(421, 480).stroke('#3B5998');
+          doc.circle(421, 80, 5).fill('#3B5998');
+          doc.circle(421, 480, 5).fill('#3B5998');
+          doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998').text('r.', 790, 550);
+        }
+
+        // Column 1
+        yPos = 100;
+        slideCFieldsCol1.forEach((field) => {
+          let value = getValue(property, ...field.keys);
+          
+          doc.circle(55, yPos + 6, 4).fill('#3B5998');
+          doc.moveTo(59, yPos + 6).lineTo(75, yPos + 6).stroke('#3B5998');
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d').text(field.label + ':', 80, yPos);
+          doc.fontSize(10).font('Helvetica').fillColor('#333333').text(value.substring(0, 30), 80, yPos + 15, { width: 320 });
+          yPos += 45;
+        });
+
+        // Column 2
+        yPos = 100;
+        slideCFieldsCol2.forEach((field) => {
+          let value = getValue(property, ...field.keys);
+          if (field.keys.includes('external_amenities') && value.length > 50) {
+            value = value.substring(0, 47) + '...';
           }
           
-          // Draw card background for each cell
-          doc.rect(xPos + 5, rowY + 2, propertyColWidth - 10, rowHeight - 4)
-             .fillAndStroke('#e8f0fe', '#d0dff5');
-          
-          doc.fontSize(9).font('Helvetica').fillColor('#1a1a1a')
-             .text(value.substring(0, 25), xPos + 15, rowY + 8, { width: propertyColWidth - 30 });
-          
-          xPos += propertyColWidth;
+          doc.circle(455, yPos + 6, 4).fill('#3B5998');
+          doc.moveTo(459, yPos + 6).lineTo(475, yPos + 6).stroke('#3B5998');
+          doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d').text(field.label + ':', 480, yPos);
+          doc.fontSize(10).font('Helvetica').fillColor('#333333').text(value.substring(0, 30), 480, yPos + 15, { width: 320 });
+          yPos += 45;
         });
       });
+
+      // ==================== COMPARISON CARD SLIDE ====================
+      const compareCardsBg = loadLocalTemplate('compare_cards_bg.png');
+      doc.addPage();
       
-      // Footer
-      doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998')
-         .text('r.', pageWidth - 50, pageHeight - 40);
-      
-      // If more than 3 properties, add additional comparison pages
-      if (enrichedProjects.length > 3) {
-        for (let pageStart = 3; pageStart < enrichedProjects.length; pageStart += 3) {
-          doc.addPage();
-          
-          const pageProjects = enrichedProjects.slice(pageStart, pageStart + 3);
-          const numPropsOnPage = pageProjects.length;
-          const propColWidth = (usableWidth - labelColWidth) / numPropsOnPage;
-          
-          // Header
-          doc.rect(0, 0, pageWidth, 60).fill('#3B5998');
-          doc.fontSize(18).font('Helvetica-Bold').fillColor('#ffffff')
-             .text('COMPARE', margin + 10, 20);
-          doc.fontSize(18).font('Helvetica').fillColor('#ffffff')
-             .text('PROPERTY (Continued)', margin + 110, 20);
-          
-          // Property headers
-          xPos = margin + labelColWidth;
-          pageProjects.forEach((property) => {
-            doc.rect(xPos + 5, headerY, propColWidth - 10, headerHeight)
-               .fillAndStroke('#3B5998', '#3B5998');
-            
-            const projectName = getValue(property, 'projectname', 'projectName');
-            const builderName = getValue(property, 'buildername', 'builderName');
-            
-            doc.fontSize(11).font('Helvetica-Bold').fillColor('#ffffff')
-               .text(projectName.substring(0, 20), xPos + 15, headerY + 10, { width: propColWidth - 30 });
-            doc.fontSize(8).font('Helvetica').fillColor('#e0e0e0')
-               .text(`By ${builderName.substring(0, 25)}`, xPos + 15, headerY + 50, { width: propColWidth - 30 });
-            
-            xPos += propColWidth;
-          });
-          
-          // Table rows
-          comparisonFields.forEach((field, rowIdx) => {
-            const rowY = tableStartY + (rowIdx * rowHeight);
-            const isEvenRow = rowIdx % 2 === 0;
-            
-            doc.rect(margin, rowY, usableWidth, rowHeight)
-               .fill(isEvenRow ? '#f8f9fa' : '#ffffff');
-            
-            doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333')
-               .text(field.label, margin + 10, rowY + 8);
-            
-            xPos = margin + labelColWidth;
-            pageProjects.forEach((property) => {
-              let value = field.default || getValue(property, ...field.keys);
-              
-              if (field.format === 'price') value = formatPrice(value);
-              if (field.suffix && value !== 'N/A') value = value + field.suffix;
-              
-              if (field.keys.includes('configurations') && Array.isArray(property.configurations)) {
-                value = property.configurations.map((c: any) => c.type || c).join(', ') || 'N/A';
-              }
-              
-              doc.rect(xPos + 5, rowY + 2, propColWidth - 10, rowHeight - 4)
-                 .fillAndStroke('#e8f0fe', '#d0dff5');
-              
-              doc.fontSize(9).font('Helvetica').fillColor('#1a1a1a')
-                 .text(value.substring(0, 25), xPos + 15, rowY + 8, { width: propColWidth - 30 });
-              
-              xPos += propColWidth;
-            });
-          });
-          
-          // Footer
-          doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998')
-             .text('r.', pageWidth - 50, pageHeight - 40);
-        }
+      if (compareCardsBg) {
+        doc.image(compareCardsBg, 0, 0, { width: 842, height: 595 });
+      } else {
+        doc.rect(0, 0, 842, 595).fill('#ffffff');
+        doc.roundedRect(30, 50, 782, 480, 8).stroke('#3B5998');
+        doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a365d').text('COMPARE', 50, 25);
+        doc.fontSize(20).font('Helvetica').fillColor('#1a365d').text('PROPERTY', 155, 25);
+        doc.moveTo(260, 35).lineTo(700, 35).dash(3, { space: 3 }).stroke('#3B5998');
+        doc.fontSize(10).font('Helvetica').fillColor('#666666').text('www.relai.world', 720, 25);
+        doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998').text('r.', 790, 550);
       }
+
+      // Draw property cards dynamically based on number of properties
+      const numProps = Math.min(enrichedProjects.length, 5);
+      const cardWidth = 140;
+      const cardHeight = 350;
+      const cardSpacing = 20;
+      const totalCardsWidth = (cardWidth * numProps) + (cardSpacing * (numProps - 1));
+      let cardStartX = (pageWidth - totalCardsWidth) / 2;
+      const cardY = 100;
+
+      enrichedProjects.slice(0, 5).forEach((property, idx) => {
+        const cardX = cardStartX + (idx * (cardWidth + cardSpacing));
+        
+        // White circle at top
+        doc.circle(cardX + cardWidth / 2, cardY + 30, 35).fill('#ffffff').stroke('#3B5998');
+        
+        // Blue card body
+        doc.roundedRect(cardX, cardY + 50, cardWidth, cardHeight - 50, 15).fill('#3B5998');
+        
+        // Property name in card
+        const projectName = getValue(property, 'projectname', 'projectName');
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
+           .text(projectName.substring(0, 15), cardX + 10, cardY + 80, { width: cardWidth - 20, align: 'center' });
+        
+        // Key metrics in stripes
+        const metrics = [
+          { label: 'Price', value: formatPrice(getValue(property, 'price_range', 'priceRange')) },
+          { label: 'Area', value: getValue(property, 'areaname', 'city').substring(0, 12) },
+          { label: 'Type', value: getValue(property, 'project_type', 'Project_Type').substring(0, 12) },
+          { label: 'GRID', value: getValue(property, 'grid_score', 'GRID_Score') },
+          { label: 'Status', value: getValue(property, 'construction_status').substring(0, 12) },
+        ];
+        
+        let stripeY = cardY + 120;
+        metrics.forEach((metric, mIdx) => {
+          const isEvenStripe = mIdx % 2 === 0;
+          doc.rect(cardX, stripeY, cardWidth, 40).fill(isEvenStripe ? '#4A69BD' : '#3B5998');
+          doc.fontSize(7).font('Helvetica').fillColor('#a0c4ff').text(metric.label, cardX + 10, stripeY + 5, { width: cardWidth - 20 });
+          doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff').text(metric.value, cardX + 10, stripeY + 18, { width: cardWidth - 20 });
+          stripeY += 40;
+        });
+      });
+
+      // ==================== COMPARISON TABLE SLIDE ====================
+      const compareTableBg = loadLocalTemplate('compare_table_bg.png');
+      doc.addPage();
+      
+      if (compareTableBg) {
+        doc.image(compareTableBg, 0, 0, { width: 842, height: 595 });
+      } else {
+        doc.rect(0, 0, 842, 595).fill('#ffffff');
+        doc.roundedRect(30, 50, 782, 480, 8).stroke('#3B5998');
+        doc.moveTo(250, 35).lineTo(700, 35).dash(3, { space: 3 }).stroke('#3B5998');
+        doc.fontSize(10).font('Helvetica').fillColor('#666666').text('www.relai.world', 720, 25);
+        doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998').text('r.', 790, 550);
+      }
+
+      // Table setup
+      const margin = 50;
+      const usableWidth = pageWidth - (margin * 2);
+      const numCols = Math.min(enrichedProjects.length, 5);
+      const colWidth = usableWidth / numCols;
+      const tableY = 100;
+      const rowHeight = 40;
+
+      // Header row with property names
+      let xPos = margin;
+      enrichedProjects.slice(0, 5).forEach((property) => {
+        doc.rect(xPos, tableY, colWidth, rowHeight).fillAndStroke('#1a365d', '#ffffff');
+        const projectName = getValue(property, 'projectname', 'projectName');
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
+           .text(projectName.substring(0, 18), xPos + 5, tableY + 12, { width: colWidth - 10, align: 'center' });
+        xPos += colWidth;
+      });
+
+      // Comparison metrics rows
+      const tableMetrics = [
+        { label: 'Price Range', keys: ['price_range', 'priceRange'], format: 'price' },
+        { label: 'Price/Sq Ft', keys: ['price_per_sft', 'pricePerSft'] },
+        { label: 'Size Range', keys: ['size_range', 'sizeRange'] },
+        { label: 'GRID Score', keys: ['grid_score', 'GRID_Score'] },
+        { label: 'Location', keys: ['areaname', 'city'] },
+        { label: 'Possession', keys: ['possession_date', 'possessionDate'] },
+        { label: 'Status', keys: ['construction_status'] },
+        { label: 'Towers', keys: ['number_of_towers'] },
+      ];
+
+      tableMetrics.forEach((metric, rowIdx) => {
+        const rowY = tableY + rowHeight + (rowIdx * rowHeight);
+        const isEvenRow = rowIdx % 2 === 0;
+        
+        xPos = margin;
+        enrichedProjects.slice(0, 5).forEach((property) => {
+          doc.rect(xPos, rowY, colWidth, rowHeight)
+             .fillAndStroke(isEvenRow ? '#c8f7dc' : '#a8f0c8', '#ffffff');
+          
+          let value = getValue(property, ...metric.keys);
+          if (metric.format === 'price') value = formatPrice(value);
+          
+          doc.fontSize(8).font('Helvetica').fillColor('#1a1a1a')
+             .text(value.substring(0, 20), xPos + 5, rowY + 12, { width: colWidth - 10, align: 'center' });
+          
+          xPos += colWidth;
+        });
+      });
 
       // Finalize PDF
       doc.end();
