@@ -264,19 +264,10 @@ const SharePage = () => {
           {title}
         </h3>
         <div 
-          className="overflow-x-auto rounded-lg border relative"
-          style={{
-            backgroundImage: `url(${watermarkImage})`,
-            backgroundRepeat: 'repeat',
-            backgroundSize: '120px',
-            backgroundPosition: 'center',
-          }}
+          className="overflow-x-auto rounded-lg border table-watermark"
+          style={{ '--watermark-url': `url(${watermarkImage})` } as React.CSSProperties}
         >
-          <div 
-            className="absolute inset-0 bg-background/90 pointer-events-none"
-            style={{ mixBlendMode: 'normal' }}
-          />
-          <table className="w-full border-collapse relative z-10" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
+          <table className="w-full border-collapse" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
             <thead>
               <tr style={{ backgroundColor: '#3350a3' }} className="text-white">
                 <th className="p-3 text-left font-medium border-r border-white/20">Property</th>
@@ -362,19 +353,10 @@ const SharePage = () => {
           {title}
         </h3>
         <div 
-          className="overflow-x-auto rounded-lg border relative"
-          style={{
-            backgroundImage: `url(${watermarkImage})`,
-            backgroundRepeat: 'repeat',
-            backgroundSize: '120px',
-            backgroundPosition: 'center',
-          }}
+          className="overflow-x-auto rounded-lg border table-watermark"
+          style={{ '--watermark-url': `url(${watermarkImage})` } as React.CSSProperties}
         >
-          <div 
-            className="absolute inset-0 bg-background/90 pointer-events-none"
-            style={{ mixBlendMode: 'normal' }}
-          />
-          <table className="w-full border-collapse relative z-10" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
+          <table className="w-full border-collapse" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
             <thead>
               <tr style={{ backgroundColor: '#3350a3' }} className="text-white">
                 <th className="p-3 text-left font-medium border-r border-white/20">Property</th>

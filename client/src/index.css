@@ -102,3 +102,27 @@
     font-family: 'Poppins', sans-serif;
   }
 }
+
+@layer components {
+  .table-watermark {
+    position: relative;
+  }
+  
+  .table-watermark::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--watermark-url);
+    background-repeat: repeat;
+    background-size: 180px 80px;
+    background-position: 0 0;
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  .table-watermark > table {
+    position: relative;
+    z-index: 1;
+  }
+}
