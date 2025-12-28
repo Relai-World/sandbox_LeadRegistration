@@ -1791,26 +1791,16 @@ export async function registerRoutes(
         created_at: new Date().toISOString(),
       };
 
-      // Find the client_Requirements record by leadId or mobile number
-      let existingRecord: any = null;
-      
-      if (leadId) {
-        const { data, error } = await supabase
-          .from('client_Requirements')
-          .select('id, share_links')
-          .eq('id', leadId)
-          .single();
-        if (!error && data) existingRecord = data;
-      }
-      
-      if (!existingRecord) {
-        const { data, error } = await supabase
-          .from('client_Requirements')
-          .select('id, share_links')
-          .eq('client_mobile', leadMobile)
-          .limit(1)
-          .single();
-        if (!error && data) existingRecord = data;
+      // Find the client_Requirements record by mobile number
+      const { data: existingRecord, error: findError } = await supabase
+        .from('client_Requirements')
+        .select('id, share_links')
+        .eq('client_mobile', leadMobile)
+        .limit(1)
+        .single();
+
+      if (findError && findError.code !== 'PGRST116') {
+        console.error('Error finding client_Requirements:', findError);
       }
 
       if (existingRecord) {
@@ -1827,10 +1817,10 @@ export async function registerRoutes(
           console.error('Error updating share_links:', updateError);
           throw new Error(updateError.message);
         }
-        console.log('Share link stored in client_Requirements id:', existingRecord.id);
+        console.log('Share link stored in client_Requirements for mobile:', leadMobile);
       } else {
-        console.log('No client_Requirements record found for leadId:', leadId, 'or mobile:', leadMobile);
-        // Still return success - the link data is in the response but won't be persisted
+        console.log('No client_Requirements record found for mobile:', leadMobile);
+        return res.status(400).json({ success: false, message: 'No lead found with this mobile number' });
       }
 
       const shareUrl = `${req.protocol}://${req.get('host')}/share/${token}`;

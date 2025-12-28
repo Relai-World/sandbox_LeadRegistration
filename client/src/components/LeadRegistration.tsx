@@ -585,9 +585,26 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
     setGeneratingShareLink(true);
     
     try {
-      // Get RERA numbers from selected properties
+      // Get RERA numbers from selected properties and find the lead's actual mobile
       const propertyReraNumbers: string[] = [];
       const seenReras = new Set<string>();
+      let leadMobileFromDb = mobile; // fallback to entered mobile
+      
+      // Get lead ID from selected properties
+      const selectedLeadIds = new Set<number>();
+      selectedPropertyKeys.forEach(key => {
+        const leadId = parseInt(key.split('-')[0]);
+        if (!isNaN(leadId)) selectedLeadIds.add(leadId);
+      });
+      
+      // If only one lead selected, use their mobile number from database
+      if (selectedLeadIds.size === 1) {
+        const leadId = Array.from(selectedLeadIds)[0];
+        const lead = leads.find(l => l.id === leadId);
+        if (lead && lead.client_mobile) {
+          leadMobileFromDb = lead.client_mobile;
+        }
+      }
       
       leads.forEach(lead => {
         (lead.shortlisted_properties ?? []).forEach(p => {
@@ -604,24 +621,16 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       });
 
       console.log('Generating share link for RERA numbers:', propertyReraNumbers);
-
-      // Get lead IDs from selected properties to find the correct record
-      const selectedLeadIds = new Set<number>();
-      selectedPropertyKeys.forEach(key => {
-        const leadId = parseInt(key.split('-')[0]);
-        if (!isNaN(leadId)) selectedLeadIds.add(leadId);
-      });
-      const leadId = selectedLeadIds.size === 1 ? Array.from(selectedLeadIds)[0] : null;
+      console.log('Using lead mobile from database:', leadMobileFromDb);
 
       const response = await fetch(`${API_BASE_URL}/api/share/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           leadName: name,
-          leadMobile: mobile,
+          leadMobile: leadMobileFromDb,
           propertyReraNumbers,
           createdBy: agentData?.email || '',
-          leadId,
         }),
       });
 
