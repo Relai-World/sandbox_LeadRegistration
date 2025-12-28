@@ -129,6 +129,79 @@ const SharePage = () => {
     'floor_to_ceiling_height', 'main_door_height', 'uds', 'fsi'
   ];
 
+  const getConfigurationRows = (): { key: string; values: (string | null)[] }[] => {
+    const rows: { key: string; values: (string | null)[] }[] = [];
+    
+    for (const key of configurationKeys) {
+      const values = data.properties.map(prop => {
+        const val = prop[key];
+        return isValidValue(val) ? String(val) : null;
+      });
+      
+      if (values.some(v => v !== null)) {
+        rows.push({ key, values });
+      }
+    }
+    
+    const baseCostValues = data.properties.map(prop => {
+      const sqfeet = parseFloat(prop['sqfeet']);
+      const pricePerSft = parseFloat(prop['price_per_sft']);
+      if (!isNaN(sqfeet) && !isNaN(pricePerSft) && sqfeet > 0 && pricePerSft > 0) {
+        const baseCost = sqfeet * pricePerSft;
+        return formatPrice(baseCost);
+      }
+      return null;
+    });
+    
+    if (baseCostValues.some(v => v !== null)) {
+      rows.push({ key: 'base_cost', values: baseCostValues });
+    }
+    
+    return rows;
+  };
+
+  const renderConfigurationTable = (title: string, icon: React.ReactNode) => {
+    const rows = getConfigurationRows();
+    if (rows.length === 0) return null;
+
+    return (
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          {icon}
+          {title}
+        </h3>
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full border-collapse" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
+            <thead>
+              <tr style={{ backgroundColor: '#3350a3' }} className="text-white">
+                <th className="p-3 text-left font-medium border-r border-white/20">Property</th>
+                {data.properties.map((property, idx) => (
+                  <th key={idx} className="p-3 text-left font-medium min-w-[180px]">
+                    {getValue(property, 'projectname')?.substring(0, 25) || `Property ${idx + 1}`}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIdx) => (
+                <tr key={row.key} className={rowIdx % 2 === 0 ? "bg-muted/30" : "bg-background"}>
+                  <td className="p-3 font-medium text-muted-foreground border-r">
+                    {row.key === 'base_cost' ? 'Base Cost (Sqft × Price/Sqft)' : formatLabel(row.key)}
+                  </td>
+                  {row.values.map((value, colIdx) => (
+                    <td key={colIdx} className={`p-3 ${row.key === 'base_cost' ? 'font-semibold' : ''}`} data-testid={`cell-${row.key}-${colIdx}`}>
+                      {value || <span className="text-muted-foreground/50">-</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   const projectDetailsKeys = [
     'total_land_area', 'number_of_towers', 'number_of_floors', 
     'number_of_flats_per_floor', 'total_number_of_units', 'open_space',
@@ -340,7 +413,7 @@ const SharePage = () => {
           
           {renderComparisonTable("Basic Information", basicInfoKeys, <Building2 className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           {renderComparisonTable("Pricing Details", pricingKeys, <IndianRupee className="h-5 w-5" style={{ color: '#3350a3' }} />)}
-          {renderComparisonTable("Unit Configuration", configurationKeys, <Home className="h-5 w-5" style={{ color: '#3350a3' }} />)}
+          {renderConfigurationTable("Unit Configuration", <Home className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           {renderComparisonTable("Project Details", projectDetailsKeys, <Building className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           {renderComparisonTable("Amenities & Features", amenitiesKeys, <Waves className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           {renderComparisonTable("Scores & Ratings", scoreKeys, <Star className="h-5 w-5" style={{ color: '#3350a3' }} />)}
