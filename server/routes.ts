@@ -319,9 +319,11 @@ export async function registerRoutes(
     }
   });
 
-  // Get Zoho leads (placeholder - returns empty for now)
-  app.get('/api/lead-registration/zoho-leads', async (req, res) => {
-    res.status(200).json({ success: true, data: [] });
+  // Get Zoho lead names by mobile numbers (placeholder - would need Zoho API integration)
+  app.post('/api/lead-registration/zoho-leads', async (req, res) => {
+    // This endpoint would integrate with Zoho CRM API to fetch lead names
+    // For now, return empty data since Zoho API credentials aren't configured
+    res.status(200).json({ success: true, data: {} });
   });
 
   // Update lead
