@@ -1791,21 +1791,31 @@ export async function registerRoutes(
         created_at: new Date().toISOString(),
       };
 
-      // Find the client_Requirements record by mobile number
-      const { data: existingRecord, error: findError } = await supabase
-        .from('client_Requirements')
-        .select('id, share_links')
-        .eq('client_mobile', leadMobile)
-        .limit(1)
-        .single();
-
-      if (findError && findError.code !== 'PGRST116') {
-        console.error('Error finding client_Requirements:', findError);
+      // Find the client_Requirements record by leadId or mobile number
+      let existingRecord: any = null;
+      
+      if (leadId) {
+        const { data, error } = await supabase
+          .from('client_Requirements')
+          .select('id, share_links')
+          .eq('id', leadId)
+          .single();
+        if (!error && data) existingRecord = data;
+      }
+      
+      if (!existingRecord) {
+        const { data, error } = await supabase
+          .from('client_Requirements')
+          .select('id, share_links')
+          .eq('client_mobile', leadMobile)
+          .limit(1)
+          .single();
+        if (!error && data) existingRecord = data;
       }
 
       if (existingRecord) {
         // Append to existing share_links array or create new one
-        const existingLinks = existingRecord.share_links || [];
+        const existingLinks = Array.isArray(existingRecord.share_links) ? existingRecord.share_links : [];
         const updatedLinks = [...existingLinks, shareLinkData];
 
         const { error: updateError } = await supabase
@@ -1817,9 +1827,10 @@ export async function registerRoutes(
           console.error('Error updating share_links:', updateError);
           throw new Error(updateError.message);
         }
+        console.log('Share link stored in client_Requirements id:', existingRecord.id);
       } else {
-        console.log('No client_Requirements record found for mobile:', leadMobile);
-        // Still return success - the link will work via token lookup
+        console.log('No client_Requirements record found for leadId:', leadId, 'or mobile:', leadMobile);
+        // Still return success - the link data is in the response but won't be persisted
       }
 
       const shareUrl = `${req.protocol}://${req.get('host')}/share/${token}`;
@@ -1865,7 +1876,10 @@ export async function registerRoutes(
       let foundRecord: any = null;
 
       for (const record of records || []) {
-        const shareLinks = record.share_links || [];
+        const shareLinks = record.share_links;
+        // Ensure share_links is an array before searching
+        if (!Array.isArray(shareLinks)) continue;
+        
         const matchingLink = shareLinks.find((link: any) => link.token === token);
         if (matchingLink) {
           foundShareLink = matchingLink;

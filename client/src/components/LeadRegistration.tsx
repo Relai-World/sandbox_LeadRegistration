@@ -605,6 +605,14 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
 
       console.log('Generating share link for RERA numbers:', propertyReraNumbers);
 
+      // Get lead IDs from selected properties to find the correct record
+      const selectedLeadIds = new Set<number>();
+      selectedPropertyKeys.forEach(key => {
+        const leadId = parseInt(key.split('-')[0]);
+        if (!isNaN(leadId)) selectedLeadIds.add(leadId);
+      });
+      const leadId = selectedLeadIds.size === 1 ? Array.from(selectedLeadIds)[0] : null;
+
       const response = await fetch(`${API_BASE_URL}/api/share/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -613,6 +621,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
           leadMobile: mobile,
           propertyReraNumbers,
           createdBy: agentData?.email || '',
+          leadId,
         }),
       });
 
