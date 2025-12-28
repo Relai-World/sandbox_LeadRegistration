@@ -1403,6 +1403,154 @@ export async function registerRoutes(
     }
   });
 
+  // === PROPERTIES SAVE (for ProjectForm submission) ===
+
+  app.post('/api/properties/save', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ success: false, message: 'Database not available' });
+    }
+
+    try {
+      const propertyData = req.body;
+      console.log('Received property data for save:', JSON.stringify(propertyData, null, 2).substring(0, 500));
+
+      // Check if we have a RERA number to identify the property
+      const reraNumber = propertyData.RERA_Number || propertyData.rera_number;
+      
+      if (!reraNumber) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'RERA number is required' 
+        });
+      }
+
+      // Map frontend format to database format
+      const dbData: any = {
+        rera_number: reraNumber,
+        projectname: propertyData.ProjectName || propertyData.projectname || null,
+        buildername: propertyData.BuilderName || propertyData.buildername || null,
+        areaname: propertyData.AreaName || propertyData.areaname || null,
+        projectlocation: propertyData.ProjectLocation || propertyData.projectlocation || null,
+        project_type: propertyData.Project_Type || propertyData.project_type || null,
+        buildingname: propertyData.BuildingName || propertyData.buildingname || null,
+        communitytype: propertyData.CommunityType || propertyData.communitytype || null,
+        total_land_area: propertyData.Total_land_Area || propertyData.total_land_area || null,
+        number_of_towers: propertyData.Number_of_Towers || propertyData.number_of_towers || null,
+        number_of_floors: propertyData.Number_of_Floors || propertyData.number_of_floors || null,
+        number_of_flats_per_floor: propertyData.Number_of_Flats_Per_Floor || propertyData.number_of_flats_per_floor || null,
+        total_number_of_units: propertyData.Total_Number_of_Units || propertyData.total_number_of_units || null,
+        project_launch_date: propertyData.Launch_Date || propertyData.project_launch_date || null,
+        possession_date: propertyData.Possession_Date || propertyData.possession_date || null,
+        construction_status: propertyData.Construction_Status || propertyData.construction_status || null,
+        open_space: propertyData.Open_Space || propertyData.open_space || null,
+        carpet_area_percentage: propertyData.Carpet_area_Percentage || propertyData.carpet_area_percentage || null,
+        floor_to_ceiling_height: propertyData.Floor_to_Ceiling_Height || propertyData.floor_to_ceiling_height || null,
+        price_per_sft: propertyData.Price_per_sft || propertyData.price_per_sft || null,
+        total_buildup_area: propertyData.Total_Buildup_Area || propertyData.total_buildup_area || null,
+        uds: propertyData.UDS || propertyData.uds || null,
+        fsi: propertyData.FSI || propertyData.fsi || null,
+        main_door_height: propertyData.Main_Door_Height || propertyData.main_door_height || null,
+        external_amenities: propertyData.External_Amenities || propertyData.external_amenities || null,
+        specification: propertyData.Specification || propertyData.specification || null,
+        powerbackup: propertyData.PowerBackup || propertyData.powerbackup || null,
+        no_of_passenger_lift: propertyData.No_of_Passenger_lift || propertyData.no_of_passenger_lift || null,
+        no_of_service_lift: propertyData.No_of_Service_lift || propertyData.no_of_service_lift || null,
+        visitor_parking: propertyData.Visitor_Parking || propertyData.visitor_parking || null,
+        ground_vehicle_movement: propertyData.Ground_vehicle_Movement || propertyData.ground_vehicle_movement || null,
+        baseprojectprice: propertyData.baseprojectprice || propertyData['Base Project Price'] || 0,
+        commission_percentage: propertyData.Commission_percentage || propertyData.commission_percentage || null,
+        amount_for_extra_car_parking: propertyData.Amount_For_Extra_Car_Parking || propertyData.amount_for_extra_car_parking || null,
+        home_loan: propertyData.Home_Loan || propertyData.home_loan || null,
+        what_is_there_price: propertyData.What_is_there_Price || propertyData.what_is_there_price || null,
+        what_is_relai_price: propertyData.What_is_Relai_Price || propertyData.what_is_relai_price || null,
+        floor_rise_charges: propertyData.Floor_Rise_Charges || propertyData.floor_rise_charges || null,
+        floor_rise_amount_per_floor: propertyData.Floor_Rise_Amount_per_Floor || propertyData.floor_rise_amount_per_floor || null,
+        floor_rise_applicable_above_floor_no: propertyData.Floor_Rise_Applicable_Above_Floor_No || propertyData.floor_rise_applicable_above_floor_no || null,
+        facing_charges: propertyData.Facing_Charges || propertyData.facing_charges || null,
+        preferential_location_charges: propertyData.Preferential_Location_Charges || propertyData.preferential_location_charges || null,
+        preferential_location_charges_conditions: propertyData.Preferential_Location_Charges_Conditions || propertyData.preferential_location_charges_conditions || null,
+        available_banks_for_loan: propertyData.Available_Banks_for_Loan || propertyData.available_banks_for_loan || null,
+        builder_age: propertyData.Builder_Age || propertyData.builder_age || null,
+        builder_total_properties: propertyData.Builder_Total_Properties || propertyData.builder_total_properties || null,
+        builder_upcoming_properties: propertyData.Builder_Upcoming_Properties || propertyData.builder_upcoming_properties || null,
+        builder_completed_properties: propertyData.Builder_Completed_Properties || propertyData.builder_completed_properties || null,
+        builder_ongoing_projects: propertyData.Builder_Ongoing_Projects || propertyData.builder_ongoing_projects || null,
+        builder_origin_city: propertyData.Builder_Origin_City || propertyData.builder_origin_city || null,
+        builder_operating_locations: propertyData.Builder_Operating_Locations || propertyData.builder_operating_locations || null,
+        previous_complaints_on_builder: propertyData.Previous_Complaints_on_Builder || propertyData.previous_complaints_on_builder || null,
+        complaint_details: propertyData.Complaint_Details || propertyData.complaint_details || null,
+        construction_material: propertyData.Construction_Material || propertyData.construction_material || null,
+        configurations: propertyData.configurations || null,
+        status: propertyData.status === 'Submitted' ? 'Submitted' : 'Unverified',
+        useremail: propertyData.userEmail || propertyData.useremail || null,
+        projectbrochure: propertyData.ProjectBrochure || propertyData.projectbrochure || null,
+        pricesheet_link_1: propertyData.Pricesheet_Link || propertyData.pricesheet_link_1 || null,
+        city: propertyData.City || propertyData.city || null,
+        state: propertyData.State || propertyData.state || null,
+        updatedat: new Date().toISOString()
+      };
+
+      // Check if property already exists in Unverified_Properties
+      const { data: existingProperty, error: checkError } = await supabase
+        .from('Unverified_Properties')
+        .select('id')
+        .eq('rera_number', reraNumber)
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing property:', checkError);
+      }
+
+      let result;
+      if (existingProperty) {
+        // Update existing property
+        console.log('Updating existing property with RERA:', reraNumber);
+        const { data, error } = await supabase
+          .from('Unverified_Properties')
+          .update(dbData)
+          .eq('rera_number', reraNumber)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error updating property:', error);
+          return res.status(500).json({ success: false, message: 'Failed to update property', error: error.message });
+        }
+        result = data;
+      } else {
+        // Insert new property
+        console.log('Creating new property with RERA:', reraNumber);
+        dbData.createdat = new Date().toISOString();
+        const { data, error } = await supabase
+          .from('Unverified_Properties')
+          .insert(dbData)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error inserting property:', error);
+          return res.status(500).json({ success: false, message: 'Failed to save property', error: error.message });
+        }
+        result = data;
+      }
+
+      console.log('Property saved successfully:', result?.rera_number);
+      res.status(200).json({ 
+        success: true, 
+        message: existingProperty ? 'Property updated successfully' : 'Property saved successfully',
+        data: result 
+      });
+
+    } catch (error: any) {
+      console.error('Error in /api/properties/save:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Server error saving property',
+        error: error.message 
+      });
+    }
+  });
+
   // === PROPERTIES ===
 
   app.get(api.properties.list.path, async (req, res) => {
