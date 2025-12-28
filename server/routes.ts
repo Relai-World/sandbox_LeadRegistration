@@ -1762,6 +1762,151 @@ export async function registerRoutes(
     }
   });
 
+  // === SHARE LINKS (stored in client_Requirements.share_links field) ===
+  
+  // Generate a unique share link
+  app.post('/api/share/create', async (req, res) => {
+    try {
+      const { leadName, leadMobile, propertyReraNumbers, createdBy, leadId } = req.body;
+
+      if (!leadName || !leadMobile || !propertyReraNumbers || !Array.isArray(propertyReraNumbers) || propertyReraNumbers.length === 0) {
+        return res.status(400).json({ success: false, message: 'Lead name, mobile, and at least one property are required' });
+      }
+
+      if (!supabase) {
+        return res.status(503).json({ success: false, message: 'Database not available' });
+      }
+
+      // Generate a unique token
+      const crypto = await import('crypto');
+      const token = crypto.randomBytes(16).toString('hex');
+
+      // Create share link data object
+      const shareLinkData = {
+        token,
+        lead_name: leadName,
+        lead_mobile: leadMobile,
+        property_rera_numbers: propertyReraNumbers,
+        created_by: createdBy || null,
+        created_at: new Date().toISOString(),
+      };
+
+      // Find the client_Requirements record by mobile number
+      const { data: existingRecord, error: findError } = await supabase
+        .from('client_Requirements')
+        .select('id, share_links')
+        .eq('client_mobile', leadMobile)
+        .limit(1)
+        .single();
+
+      if (findError && findError.code !== 'PGRST116') {
+        console.error('Error finding client_Requirements:', findError);
+      }
+
+      if (existingRecord) {
+        // Append to existing share_links array or create new one
+        const existingLinks = existingRecord.share_links || [];
+        const updatedLinks = [...existingLinks, shareLinkData];
+
+        const { error: updateError } = await supabase
+          .from('client_Requirements')
+          .update({ share_links: updatedLinks })
+          .eq('id', existingRecord.id);
+
+        if (updateError) {
+          console.error('Error updating share_links:', updateError);
+          throw new Error(updateError.message);
+        }
+      } else {
+        console.log('No client_Requirements record found for mobile:', leadMobile);
+        // Still return success - the link will work via token lookup
+      }
+
+      const shareUrl = `${req.protocol}://${req.get('host')}/share/${token}`;
+
+      res.json({ 
+        success: true, 
+        token,
+        shareUrl,
+        shareLink: shareLinkData
+      });
+    } catch (error: any) {
+      console.error('Share link creation error:', error);
+      res.status(500).json({ success: false, message: 'Failed to create share link', error: error.message });
+    }
+  });
+
+  // Get share link data by token (public endpoint)
+  app.get('/api/share/:token', async (req, res) => {
+    try {
+      const { token } = req.params;
+
+      if (!token) {
+        return res.status(400).json({ success: false, message: 'Token is required' });
+      }
+
+      if (!supabase) {
+        return res.status(503).json({ success: false, message: 'Database not available' });
+      }
+
+      // Search for the token in client_Requirements.share_links array
+      const { data: records, error: fetchError } = await supabase
+        .from('client_Requirements')
+        .select('*')
+        .not('share_links', 'is', null);
+
+      if (fetchError) {
+        console.error('Error fetching client_Requirements:', fetchError);
+        return res.status(500).json({ success: false, message: 'Database error' });
+      }
+
+      // Find the share link with matching token
+      let foundShareLink: any = null;
+      let foundRecord: any = null;
+
+      for (const record of records || []) {
+        const shareLinks = record.share_links || [];
+        const matchingLink = shareLinks.find((link: any) => link.token === token);
+        if (matchingLink) {
+          foundShareLink = matchingLink;
+          foundRecord = record;
+          break;
+        }
+      }
+
+      if (!foundShareLink) {
+        return res.status(404).json({ success: false, message: 'Share link not found or expired' });
+      }
+
+      // Fetch property details from Supabase unified_data
+      const properties: any[] = [];
+      const reraNumbers = foundShareLink.property_rera_numbers || [];
+      
+      for (const reraNumber of reraNumbers) {
+        const { data: propertyDataArray, error } = await supabase
+          .from('unified_data')
+          .select('*')
+          .eq('rera_number', reraNumber)
+          .limit(1);
+        
+        if (!error && propertyDataArray && propertyDataArray.length > 0) {
+          properties.push(propertyDataArray[0]);
+        }
+      }
+
+      res.json({
+        success: true,
+        leadName: foundShareLink.lead_name,
+        leadMobile: foundShareLink.lead_mobile,
+        properties,
+        createdAt: foundShareLink.created_at,
+      });
+    } catch (error: any) {
+      console.error('Share link fetch error:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch share link', error: error.message });
+    }
+  });
+
   // === PDF GENERATION ===
   app.post('/api/pdf/generate-pdf', async (req, res) => {
     try {

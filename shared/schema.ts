@@ -53,11 +53,24 @@ export const leads = pgTable("leads", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Share links for property comparisons
+export const shareLinks = pgTable("share_links", {
+  id: serial("id").primaryKey(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  leadName: text("lead_name").notNull(),
+  leadMobile: text("lead_mobile").notNull(),
+  propertyReraNumbers: text("property_rera_numbers").array().notNull(),
+  createdBy: varchar("created_by"), // Agent email who created the link
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // Optional expiration
+});
+
 // === SCHEMAS ===
 
 export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true });
 export const insertPropertySchema = createInsertSchema(properties).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
+export const insertShareLinkSchema = createInsertSchema(shareLinks).omit({ id: true, createdAt: true });
 
 // === TYPES ===
 
@@ -69,6 +82,9 @@ export type InsertProperty = z.infer<typeof insertPropertySchema>;
 
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = z.infer<typeof insertLeadSchema>;
+
+export type ShareLink = typeof shareLinks.$inferSelect;
+export type InsertShareLink = z.infer<typeof insertShareLinkSchema>;
 
 // Request Types
 export type CreatePropertyRequest = InsertProperty;

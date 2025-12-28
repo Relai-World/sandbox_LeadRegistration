@@ -28,8 +28,18 @@ import {
   User,
   Home,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Link,
+  Copy,
+  Check
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface ShortlistedPropertyData {
   areaname?: string;
@@ -152,6 +162,10 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   const [leadModalOpen, setLeadModalOpen] = useState(false);
   const [leadName, setLeadName] = useState('');
   const [leadMobile, setLeadMobile] = useState('');
+  const [shareLinkModalOpen, setShareLinkModalOpen] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
+  const [generatingShareLink, setGeneratingShareLink] = useState(false);
   const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
   const [leadStatuses, setLeadStatuses] = useState<Record<number, string>>({});
   const { toast } = useToast();
@@ -514,6 +528,121 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       toast({
         title: 'Error generating PDF',
         description: errorDetail,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleGenerateShareLink = async () => {
+    if (selectedPropertyKeys.size < 2) {
+      toast({
+        title: 'Not enough properties',
+        description: 'Please select at least 2 properties to generate a share link.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Extract lead info from selected properties
+    const selectedLeadIds = new Set<number>();
+    selectedPropertyKeys.forEach(key => {
+      const leadId = parseInt(key.split('-')[0]);
+      if (!isNaN(leadId)) selectedLeadIds.add(leadId);
+    });
+
+    let name = '';
+    let mobile = '';
+    
+    if (selectedLeadIds.size === 1) {
+      const leadId = Array.from(selectedLeadIds)[0];
+      const lead = leads.find(l => l.id === leadId);
+      if (lead) {
+        name = lead.client_name || '';
+        mobile = lead.client_mobile || '';
+      }
+    }
+
+    if (!name || !mobile) {
+      toast({
+        title: 'Lead info required',
+        description: 'Please use the Report button to enter lead details first.',
+        variant: 'destructive',
+      });
+      setLeadModalOpen(true);
+      return;
+    }
+
+    setGeneratingShareLink(true);
+    
+    try {
+      // Get RERA numbers from selected properties
+      const propertyReraNumbers: string[] = [];
+      const seenReras = new Set<string>();
+      
+      leads.forEach(lead => {
+        (lead.shortlisted_properties ?? []).forEach(p => {
+          const reraNumber = p.property?.rera_number || p.rera_number;
+          const projectName = p.property?.projectname || p.projectname || p.propertyName;
+          const key = reraNumber || projectName || '';
+          const propertyKey = `${lead.id}-${key}`;
+          
+          if (selectedPropertyKeys.has(propertyKey) && reraNumber && !seenReras.has(reraNumber)) {
+            seenReras.add(reraNumber);
+            propertyReraNumbers.push(reraNumber);
+          }
+        });
+      });
+
+      console.log('Generating share link for RERA numbers:', propertyReraNumbers);
+
+      const response = await fetch(`${API_BASE_URL}/api/share/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadName: name,
+          leadMobile: mobile,
+          propertyReraNumbers,
+          createdBy: agentData?.email || '',
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setShareLink(result.shareUrl);
+        setShareLinkModalOpen(true);
+        toast({
+          title: 'Share link created!',
+          description: 'You can now copy and share this link.',
+        });
+      } else {
+        throw new Error(result.message || 'Failed to create share link');
+      }
+    } catch (error) {
+      console.error('Error generating share link:', error);
+      toast({
+        title: 'Error creating share link',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setGeneratingShareLink(false);
+    }
+  };
+
+  const copyShareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setShareLinkCopied(true);
+      setTimeout(() => setShareLinkCopied(false), 2000);
+      toast({
+        title: 'Copied!',
+        description: 'Share link copied to clipboard.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Copy failed',
+        description: 'Please select and copy the link manually.',
         variant: 'destructive',
       });
     }
@@ -1354,10 +1483,55 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                 <FileText className="w-4 h-4 mr-2" />
                 Report ({selectedPropertyKeys.size})
               </Button>
+              <Button
+                onClick={handleGenerateShareLink}
+                disabled={selectedPropertyKeys.size < 2 || generatingShareLink}
+                className={`${selectedPropertyKeys.size >= 2 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300'} text-white`}
+                size="sm"
+                data-testid="button-share-link"
+              >
+                {generatingShareLink ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Link className="w-4 h-4 mr-2" />
+                )}
+                Share Link
+              </Button>
             </div>
           </div>
         </Card>
       )}
+      
+      <Dialog open={shareLinkModalOpen} onOpenChange={setShareLinkModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Share Property Comparison</DialogTitle>
+            <DialogDescription>
+              Share this link with your client to view the property comparison.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 mt-4">
+            <Input
+              value={shareLink}
+              readOnly
+              className="flex-1"
+              data-testid="input-share-link"
+            />
+            <Button
+              onClick={copyShareLink}
+              size="icon"
+              variant="outline"
+              data-testid="button-copy-link"
+            >
+              {shareLinkCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+            </Button>
+          </div>
+          <div className="mt-4 text-sm text-muted-foreground">
+            This link will show all {selectedPropertyKeys.size} selected properties with comparison details.
+          </div>
+        </DialogContent>
+      </Dialog>
+      
       <LeadInfoModal
         open={leadModalOpen}
         onClose={() => {

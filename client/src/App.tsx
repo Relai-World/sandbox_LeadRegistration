@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import AdminIndex from "./pages/AdminIndex";
 import AgentIndex from "./pages/AgentIndex";
 import NotFound from "./pages/NotFound";
+import SharePage from "./pages/SharePage";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,10 @@ const AppRoutes = () => {
       <Route 
         path="/agent" 
         element={<AgentIndex />} 
+      />
+      <Route 
+        path="/share/:token" 
+        element={<SharePage />} 
       />
       <Route path="*" element={<NotFound />} />
     </Routes>
