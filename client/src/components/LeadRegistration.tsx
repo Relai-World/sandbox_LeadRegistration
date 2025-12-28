@@ -41,6 +41,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+const toTitleCase = (str: string | undefined | null): string => {
+  if (!str) return '';
+  return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+};
+
 interface ShortlistedPropertyData {
   areaname?: string;
   buildername?: string;
@@ -1408,10 +1413,10 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                                             </div>
                                           </td>
                                           <td className="px-3 py-2 text-gray-900 font-medium">
-                                            {projectName || 'N/A'}
+                                            {toTitleCase(projectName) || 'N/A'}
                                           </td>
                                           <td className="px-3 py-2 text-gray-700">
-                                            {builderName || 'N/A'}
+                                            {toTitleCase(builderName) || 'N/A'}
                                           </td>
                                           <td className="px-3 py-2 font-mono text-gray-600 text-xs">
                                             {reraNumber || 'N/A'}

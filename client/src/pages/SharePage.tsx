@@ -147,6 +147,11 @@ const SharePage = () => {
     }
   };
 
+  const toTitleCase = (str: string | undefined | null): string => {
+    if (!str) return '';
+    return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center" data-testid="loading-container">
@@ -264,7 +269,7 @@ const SharePage = () => {
                 <th className="p-3 text-left font-medium border-r border-white/20">Property</th>
                 {data.properties.map((property, idx) => (
                   <th key={idx} className="p-3 text-left font-medium min-w-[180px]">
-                    {getValue(property, 'projectname')?.substring(0, 25) || `Property ${idx + 1}`}
+                    {toTitleCase(getValue(property, 'projectname'))?.substring(0, 25) || `Property ${idx + 1}`}
                   </th>
                 ))}
               </tr>
@@ -350,7 +355,7 @@ const SharePage = () => {
                 <th className="p-3 text-left font-medium border-r border-white/20">Property</th>
                 {data.properties.map((property, idx) => (
                   <th key={idx} className="p-3 text-left font-medium min-w-[180px]">
-                    {getValue(property, 'projectname')?.substring(0, 25) || `Property ${idx + 1}`}
+                    {toTitleCase(getValue(property, 'projectname'))?.substring(0, 25) || `Property ${idx + 1}`}
                   </th>
                 ))}
               </tr>
@@ -440,10 +445,10 @@ const SharePage = () => {
                 <Card key={idx} className="overflow-hidden" data-testid={`card-property-${idx}`}>
                   <CardHeader style={{ backgroundColor: 'rgba(51, 80, 163, 0.1)' }} className="pb-3">
                     <CardTitle className="text-lg line-clamp-1" data-testid={`text-property-name-${idx}`}>
-                      {projectName || `Property ${idx + 1}`}
+                      {toTitleCase(projectName) || `Property ${idx + 1}`}
                     </CardTitle>
                     {builderName && (
-                      <p className="text-sm text-muted-foreground">By {builderName}</p>
+                      <p className="text-sm text-muted-foreground">By {toTitleCase(builderName)}</p>
                     )}
                   </CardHeader>
                   <CardContent className="pt-4 space-y-3">
@@ -541,7 +546,7 @@ const SharePage = () => {
                 Discuss with your friend
               </Button>
               {data.properties.map((property, idx) => {
-                const projectName = getValue(property, 'projectname') || `Property ${idx + 1}`;
+                const projectName = toTitleCase(getValue(property, 'projectname')) || `Property ${idx + 1}`;
                 return (
                   <Button 
                     key={idx}
@@ -596,9 +601,9 @@ const SharePage = () => {
             return (
               <Card key={idx} className="mb-6" data-testid={`card-details-${idx}`}>
                 <CardHeader>
-                  <CardTitle>{projectName || `Property ${idx + 1}`}</CardTitle>
+                  <CardTitle>{toTitleCase(projectName) || `Property ${idx + 1}`}</CardTitle>
                   <div className="flex flex-wrap gap-2 text-muted-foreground text-sm">
-                    {builderName && <span>{builderName}</span>}
+                    {builderName && <span>{toTitleCase(builderName)}</span>}
                     {areaName && <span>| {areaName}</span>}
                     {googleRating && (
                       <span className="flex items-center gap-1">
