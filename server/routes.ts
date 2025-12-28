@@ -5,6 +5,9 @@ import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { insertPropertySchema, insertLeadSchema } from "@shared/schema";
+import bcrypt from "bcryptjs";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -14,6 +17,95 @@ export async function registerRoutes(
   // Auth setup
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  // === USER ROUTES (Original API compatibility) ===
+
+  app.post('/api/user/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+      }
+
+      const normalizedEmail = email.toLowerCase().trim();
+      console.log('Login attempt for:', normalizedEmail);
+
+      // Query the UsersData table
+      const result = await db.execute(
+        sql`SELECT id, username, email, password, role FROM "UsersData" WHERE email = ${normalizedEmail}`
+      );
+
+      const user = result.rows[0] as any;
+
+      if (!user) {
+        console.log('User not found:', normalizedEmail);
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      console.log('User found:', user.email);
+
+      // Compare passwords
+      const isMatch = await bcrypt.compare(password, user.password);
+
+      if (!isMatch) {
+        console.log('Password mismatch for:', normalizedEmail);
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      console.log('Login successful for:', normalizedEmail);
+      res.status(200).json({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.username,
+          role: user.role
+        }
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: 'Server error during login' });
+    }
+  });
+
+  app.post('/api/user/signup', async (req, res) => {
+    try {
+      const { username, email, password, role = 'agent' } = req.body;
+
+      if (!username || !email || !password) {
+        return res.status(400).json({ message: 'Username, email, and password are required' });
+      }
+
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // Check if user exists
+      const existing = await db.execute(
+        sql`SELECT id FROM "UsersData" WHERE email = ${normalizedEmail}`
+      );
+
+      if (existing.rows.length > 0) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Insert new user
+      await db.execute(
+        sql`INSERT INTO "UsersData" (username, email, password, role) VALUES (${username}, ${normalizedEmail}, ${hashedPassword}, ${role})`
+      );
+
+      res.status(201).json({ message: 'User registered successfully' });
+    } catch (error) {
+      console.error('Signup error:', error);
+      res.status(500).json({ message: 'Server error during registration' });
+    }
+  });
+
+  app.get('/api/test', (req, res) => {
+    res.json({ message: 'API is working' });
+  });
 
   // === PROPERTIES ===
 
