@@ -157,12 +157,9 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   const { toast } = useToast();
 
   const STATUS_OPTIONS = [
-    { value: 'new', label: 'New', color: 'bg-gray-100 text-gray-700' },
+    { value: 'yet_to_be_done', label: 'Yet to be done', color: 'bg-gray-100 text-gray-700' },
     { value: 'in_progress', label: 'In Progress', color: 'bg-blue-100 text-blue-700' },
-    { value: 'site_visit_scheduled', label: 'Site Visit Scheduled', color: 'bg-purple-100 text-purple-700' },
-    { value: 'negotiation', label: 'Negotiation', color: 'bg-yellow-100 text-yellow-700' },
     { value: 'done', label: 'Done', color: 'bg-green-100 text-green-700' },
-    { value: 'lost', label: 'Lost', color: 'bg-red-100 text-red-700' },
   ];
 
   const toggleLeadExpansion = (leadId: number) => {
@@ -1172,10 +1169,10 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                           </td>
                           <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                             <select
-                              value={leadStatuses[lead.id] || 'new'}
+                              value={leadStatuses[lead.id] || 'yet_to_be_done'}
                               onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
                               className={`text-xs font-medium px-2 py-1 rounded-md border-0 cursor-pointer ${
-                                STATUS_OPTIONS.find(s => s.value === (leadStatuses[lead.id] || 'new'))?.color || 'bg-gray-100 text-gray-700'
+                                STATUS_OPTIONS.find(s => s.value === (leadStatuses[lead.id] || 'yet_to_be_done'))?.color || 'bg-gray-100 text-gray-700'
                               }`}
                               data-testid={`select-status-${lead.id}`}
                             >
