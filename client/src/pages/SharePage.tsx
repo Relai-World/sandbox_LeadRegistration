@@ -185,8 +185,8 @@ const SharePage = () => {
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full border-collapse" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
             <thead>
-              <tr className="bg-primary text-primary-foreground">
-                <th className="p-3 text-left font-medium border-r border-primary-foreground/20">Property</th>
+              <tr style={{ backgroundColor: '#3350a3' }} className="text-white">
+                <th className="p-3 text-left font-medium border-r border-white/20">Property</th>
                 {data.properties.map((property, idx) => (
                   <th key={idx} className="p-3 text-left font-medium min-w-[180px]">
                     {getValue(property, 'projectname')?.substring(0, 25) || `Property ${idx + 1}`}
@@ -223,11 +223,11 @@ const SharePage = () => {
             data-testid="img-hero"
           />
         </div>
-        <div className="bg-primary/95 text-primary-foreground py-4 px-4">
+        <div style={{ backgroundColor: '#3350a3' }} className="text-white py-4 px-4">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <p className="text-primary-foreground/80">Personalized property comparison prepared for you</p>
+                <p className="text-white/80">Personalized property comparison prepared for you</p>
               </div>
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
@@ -247,7 +247,7 @@ const SharePage = () => {
       <main className="max-w-7xl mx-auto p-4 space-y-8">
         <section>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-primary" />
+            <Building2 className="h-5 w-5" style={{ color: '#3350a3' }} />
             Properties Overview ({data.properties.length} Properties)
           </h2>
           
@@ -267,7 +267,7 @@ const SharePage = () => {
               
               return (
                 <Card key={idx} className="overflow-hidden" data-testid={`card-property-${idx}`}>
-                  <CardHeader className="bg-primary/10 pb-3">
+                  <CardHeader style={{ backgroundColor: 'rgba(51, 80, 163, 0.1)' }} className="pb-3">
                     <CardTitle className="text-lg line-clamp-1" data-testid={`text-property-name-${idx}`}>
                       {projectName || `Property ${idx + 1}`}
                     </CardTitle>
@@ -334,24 +334,24 @@ const SharePage = () => {
 
         <section>
           <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <CheckCircle className="h-6 w-6 text-primary" />
+            <CheckCircle className="h-6 w-6" style={{ color: '#3350a3' }} />
             Comprehensive Property Comparison
           </h2>
           
-          {renderComparisonTable("Basic Information", basicInfoKeys, <Building2 className="h-5 w-5 text-primary" />)}
-          {renderComparisonTable("Pricing Details", pricingKeys, <IndianRupee className="h-5 w-5 text-primary" />)}
-          {renderComparisonTable("Unit Configuration", configurationKeys, <Home className="h-5 w-5 text-primary" />)}
-          {renderComparisonTable("Project Details", projectDetailsKeys, <Building className="h-5 w-5 text-primary" />)}
-          {renderComparisonTable("Amenities & Features", amenitiesKeys, <Waves className="h-5 w-5 text-primary" />)}
-          {renderComparisonTable("Scores & Ratings", scoreKeys, <Star className="h-5 w-5 text-primary" />)}
-          {renderComparisonTable("Nearby Facilities Count", nearbyKeys, <MapPin className="h-5 w-5 text-primary" />)}
+          {renderComparisonTable("Basic Information", basicInfoKeys, <Building2 className="h-5 w-5" style={{ color: '#3350a3' }} />)}
+          {renderComparisonTable("Pricing Details", pricingKeys, <IndianRupee className="h-5 w-5" style={{ color: '#3350a3' }} />)}
+          {renderComparisonTable("Unit Configuration", configurationKeys, <Home className="h-5 w-5" style={{ color: '#3350a3' }} />)}
+          {renderComparisonTable("Project Details", projectDetailsKeys, <Building className="h-5 w-5" style={{ color: '#3350a3' }} />)}
+          {renderComparisonTable("Amenities & Features", amenitiesKeys, <Waves className="h-5 w-5" style={{ color: '#3350a3' }} />)}
+          {renderComparisonTable("Scores & Ratings", scoreKeys, <Star className="h-5 w-5" style={{ color: '#3350a3' }} />)}
+          {renderComparisonTable("Nearby Facilities Count", nearbyKeys, <MapPin className="h-5 w-5" style={{ color: '#3350a3' }} />)}
         </section>
 
         <Separator />
 
         <section>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
+            <Shield className="h-5 w-5" style={{ color: '#3350a3' }} />
             Additional Property Details
           </h2>
           
@@ -405,7 +405,8 @@ const SharePage = () => {
                         href={mapsUrl} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                        className="inline-flex items-center gap-2 text-sm hover:underline"
+                        style={{ color: '#3350a3' }}
                       >
                         <MapPin className="h-4 w-4" /> View on Google Maps
                       </a>
@@ -415,7 +416,8 @@ const SharePage = () => {
                         href={brochure} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                        className="inline-flex items-center gap-2 text-sm hover:underline"
+                        style={{ color: '#3350a3' }}
                       >
                         <Building2 className="h-4 w-4" /> View Brochure
                       </a>
