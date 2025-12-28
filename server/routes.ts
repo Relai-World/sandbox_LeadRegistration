@@ -7,6 +7,7 @@ import { z } from "zod";
 import { insertPropertySchema, insertLeadSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { supabase } from "./supabase";
+import PDFDocument from "pdfkit";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -1741,6 +1742,269 @@ export async function registerRoutes(
       res.json(profile);
     } catch (err) {
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // === PDF GENERATION ===
+  app.post('/api/pdf/generate-pdf', async (req, res) => {
+    try {
+      const { leadName, leadMobile, projects } = req.body;
+
+      if (!projects || !Array.isArray(projects) || projects.length === 0) {
+        return res.status(400).json({ success: false, message: 'No projects provided' });
+      }
+
+      console.log('PDF Generation requested for', projects.length, 'projects');
+
+      // Fetch full property details from unified_data for each project
+      const enrichedProjects: any[] = [];
+      
+      if (supabase) {
+        for (const project of projects) {
+          const reraNumber = project.RERA_Number || project.rera_number;
+          
+          if (reraNumber && reraNumber !== 'N/A') {
+            const { data: propertyData } = await supabase
+              .from('unified_data')
+              .select('*')
+              .eq('rera_number', reraNumber)
+              .maybeSingle();
+            
+            if (propertyData) {
+              enrichedProjects.push({ ...project, ...propertyData });
+            } else {
+              enrichedProjects.push(project);
+            }
+          } else {
+            enrichedProjects.push(project);
+          }
+        }
+      } else {
+        enrichedProjects.push(...projects);
+      }
+
+      // Create PDF document
+      const doc = new PDFDocument({ 
+        size: 'A4',
+        margins: { top: 50, bottom: 50, left: 50, right: 50 },
+        bufferPages: true
+      });
+
+      // Set response headers for PDF
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=Lead_${(leadName || 'Report').replace(/\s/g, '_')}_${Date.now()}.pdf`);
+
+      // Pipe PDF to response
+      doc.pipe(res);
+
+      // Helper function to format currency
+      const formatCurrency = (value: any): string => {
+        if (!value || value === 'N/A' || value === '---') return 'N/A';
+        const num = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+        if (isNaN(num)) return 'N/A';
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
+      };
+
+      // Helper function to safely get value
+      const getValue = (obj: any, ...keys: string[]): string => {
+        for (const key of keys) {
+          const value = obj[key] || obj[key.toLowerCase()] || obj[key.toUpperCase()];
+          if (value && value !== 'N/A' && value !== '---' && value !== null && value !== undefined) {
+            return String(value);
+          }
+        }
+        return 'N/A';
+      };
+
+      // Cover page
+      doc.fontSize(28).font('Helvetica-Bold').fillColor('#1a365d')
+         .text('Property Comparison Report', { align: 'center' });
+      doc.moveDown(0.5);
+      
+      doc.fontSize(14).font('Helvetica').fillColor('#4a5568')
+         .text(`Prepared for: ${leadName || 'Valued Client'}`, { align: 'center' });
+      
+      if (leadMobile) {
+        doc.fontSize(12).text(`Contact: ${leadMobile}`, { align: 'center' });
+      }
+      
+      doc.moveDown(0.5);
+      doc.fontSize(12).text(`Date: ${new Date().toLocaleDateString('en-IN', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+      })}`, { align: 'center' });
+      
+      doc.moveDown(1);
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
+         .text(`${enrichedProjects.length} Properties Compared`, { align: 'center' });
+
+      // Property details pages
+      enrichedProjects.forEach((property, index) => {
+        doc.addPage();
+
+        // Header with project name
+        const projectName = getValue(property, 'projectName', 'projectname', 'ProjectName');
+        const builderName = getValue(property, 'builderName', 'buildername', 'BuilderName');
+        
+        doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a365d')
+           .text(projectName, 50, 50);
+        doc.fontSize(12).font('Helvetica').fillColor('#718096')
+           .text(`by ${builderName}`, 50, 75);
+        
+        doc.moveDown(1);
+        
+        let yPos = 100;
+        const leftCol = 50;
+        const rightCol = 320;
+        const lineHeight = 18;
+
+        // Section: Basic Information
+        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
+           .text('Basic Information', leftCol, yPos);
+        yPos += 25;
+        
+        doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
+        
+        const basicInfo = [
+          ['RERA Number', getValue(property, 'RERA_Number', 'rera_number')],
+          ['Location', getValue(property, 'areaname', 'AreaName', 'area_name')],
+          ['City', getValue(property, 'city', 'City')],
+          ['Project Type', getValue(property, 'Project_Type', 'project_type', 'property_type')],
+          ['Community Type', getValue(property, 'CommunityType', 'communitytype', 'community_type')],
+          ['Construction Status', getValue(property, 'constructionStatus', 'construction_status', 'Construction_Status')],
+        ];
+
+        basicInfo.forEach(([label, value], i) => {
+          const col = i % 2 === 0 ? leftCol : rightCol;
+          if (i % 2 === 0 && i > 0) yPos += lineHeight;
+          
+          doc.font('Helvetica-Bold').text(`${label}:`, col, yPos, { continued: true });
+          doc.font('Helvetica').text(` ${value}`);
+        });
+        
+        yPos += lineHeight + 20;
+
+        // Section: Project Specifications
+        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
+           .text('Project Specifications', leftCol, yPos);
+        yPos += 25;
+        
+        doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
+        
+        const specs = [
+          ['Total Land Area', getValue(property, 'totalLandArea', 'total_land_area', 'Total_land_Area') + ' Acres'],
+          ['Number of Towers', getValue(property, 'number_of_towers', 'Number_of_Towers')],
+          ['Floors', getValue(property, 'number_of_floors', 'Number_of_Floors')],
+          ['Flats Per Floor', getValue(property, 'number_of_flats_per_floor', 'Number_of_Flats_Per_Floor')],
+          ['Total Units', getValue(property, 'total_number_of_units', 'Total_Number_of_Units')],
+          ['Open Space', getValue(property, 'open_space', 'Open_Space')],
+        ];
+
+        specs.forEach(([label, value], i) => {
+          const col = i % 2 === 0 ? leftCol : rightCol;
+          if (i % 2 === 0 && i > 0) yPos += lineHeight;
+          
+          doc.font('Helvetica-Bold').text(`${label}:`, col, yPos, { continued: true });
+          doc.font('Helvetica').text(` ${value}`);
+        });
+        
+        yPos += lineHeight + 20;
+
+        // Section: Pricing
+        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
+           .text('Pricing Details', leftCol, yPos);
+        yPos += 25;
+        
+        doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
+        
+        const pricing = [
+          ['Price Per Sqft', formatCurrency(getValue(property, 'pricePerSft', 'price_per_sft', 'Price_per_sft'))],
+          ['Base Project Price', formatCurrency(getValue(property, 'baseprojectprice', 'Base Project Price', 'base_project_price'))],
+          ['Price Range', getValue(property, 'priceRange', 'price_range')],
+          ['Size Range', getValue(property, 'sizeRange', 'size_range') + ' Sqft'],
+        ];
+
+        pricing.forEach(([label, value], i) => {
+          const col = i % 2 === 0 ? leftCol : rightCol;
+          if (i % 2 === 0 && i > 0) yPos += lineHeight;
+          
+          doc.font('Helvetica-Bold').text(`${label}:`, col, yPos, { continued: true });
+          doc.font('Helvetica').text(` ${value}`);
+        });
+        
+        yPos += lineHeight + 20;
+
+        // Section: Amenities & Features
+        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
+           .text('Amenities & Features', leftCol, yPos);
+        yPos += 25;
+        
+        doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
+        
+        const amenities = [
+          ['Passenger Lifts', getValue(property, 'no_of_passenger_lift', 'No_of_Passenger_lift')],
+          ['Service Lifts', getValue(property, 'no_of_service_lift', 'No_of_Service_lift')],
+          ['Visitor Parking', getValue(property, 'visitor_parking', 'Visitor_Parking')],
+          ['Power Backup', getValue(property, 'powerbackup', 'PowerBackup', 'power_backup')],
+        ];
+
+        amenities.forEach(([label, value], i) => {
+          const col = i % 2 === 0 ? leftCol : rightCol;
+          if (i % 2 === 0 && i > 0) yPos += lineHeight;
+          
+          doc.font('Helvetica-Bold').text(`${label}:`, col, yPos, { continued: true });
+          doc.font('Helvetica').text(` ${value}`);
+        });
+        
+        yPos += lineHeight + 20;
+
+        // Section: Timeline
+        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
+           .text('Timeline', leftCol, yPos);
+        yPos += 25;
+        
+        doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
+        
+        const timeline = [
+          ['Launch Date', getValue(property, 'project_launch_date', 'Project_Launch_Date', 'Launch_Date')],
+          ['Possession Date', getValue(property, 'possessionDate', 'possession_date', 'Possession_Date')],
+        ];
+
+        timeline.forEach(([label, value], i) => {
+          const col = i % 2 === 0 ? leftCol : rightCol;
+          if (i % 2 === 0 && i > 0) yPos += lineHeight;
+          
+          doc.font('Helvetica-Bold').text(`${label}:`, col, yPos, { continued: true });
+          doc.font('Helvetica').text(` ${value}`);
+        });
+        
+        yPos += lineHeight + 20;
+
+        // External Amenities if available
+        const externalAmenities = getValue(property, 'external_amenities', 'External_Amenities');
+        if (externalAmenities && externalAmenities !== 'N/A') {
+          doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
+             .text('External Amenities', leftCol, yPos);
+          yPos += 20;
+          
+          doc.fontSize(9).font('Helvetica').fillColor('#4a5568')
+             .text(externalAmenities, leftCol, yPos, { width: 500, lineGap: 3 });
+        }
+
+        // Footer with page number
+        doc.fontSize(8).font('Helvetica').fillColor('#a0aec0')
+           .text(`Property ${index + 1} of ${enrichedProjects.length}`, 50, 780, { align: 'center' });
+      });
+
+      // Finalize PDF
+      doc.end();
+
+    } catch (error: any) {
+      console.error('PDF generation error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to generate PDF', 
+        error: error.message 
+      });
     }
   });
 
