@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Building2, MapPin, Phone, User, Calendar, Ruler, IndianRupee, Home, CheckCircle, Loader2, Star, Car, Trees, Building, Waves, Shield, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import heroImage from "@assets/relai_hero.png";
+import watermarkImage from "@assets/relai_watermark.png";
 
 interface PropertyData {
   [key: string]: any;
@@ -262,8 +263,20 @@ const SharePage = () => {
           {icon}
           {title}
         </h3>
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full border-collapse" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
+        <div 
+          className="overflow-x-auto rounded-lg border relative"
+          style={{
+            backgroundImage: `url(${watermarkImage})`,
+            backgroundRepeat: 'repeat',
+            backgroundSize: '120px',
+            backgroundPosition: 'center',
+          }}
+        >
+          <div 
+            className="absolute inset-0 bg-background/90 pointer-events-none"
+            style={{ mixBlendMode: 'normal' }}
+          />
+          <table className="w-full border-collapse relative z-10" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
             <thead>
               <tr style={{ backgroundColor: '#3350a3' }} className="text-white">
                 <th className="p-3 text-left font-medium border-r border-white/20">Property</th>
@@ -348,8 +361,20 @@ const SharePage = () => {
           {icon}
           {title}
         </h3>
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full border-collapse" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
+        <div 
+          className="overflow-x-auto rounded-lg border relative"
+          style={{
+            backgroundImage: `url(${watermarkImage})`,
+            backgroundRepeat: 'repeat',
+            backgroundSize: '120px',
+            backgroundPosition: 'center',
+          }}
+        >
+          <div 
+            className="absolute inset-0 bg-background/90 pointer-events-none"
+            style={{ mixBlendMode: 'normal' }}
+          />
+          <table className="w-full border-collapse relative z-10" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
             <thead>
               <tr style={{ backgroundColor: '#3350a3' }} className="text-white">
                 <th className="p-3 text-left font-medium border-r border-white/20">Property</th>
