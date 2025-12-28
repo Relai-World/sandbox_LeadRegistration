@@ -131,69 +131,6 @@ export async function registerRoutes(
     res.json({ message: 'API is working' });
   });
 
-  // Debug endpoint to check Supabase users and add test users
-  app.get('/api/debug/users', async (req, res) => {
-    if (!supabase) {
-      return res.status(503).json({ message: 'Supabase not configured' });
-    }
-    
-    try {
-      const { data: users, error } = await supabase
-        .from('UsersData')
-        .select('id, username, email, role');
-      
-      if (error) {
-        return res.status(500).json({ message: 'Error fetching users', error: error.message });
-      }
-      
-      res.json({ users });
-    } catch (error) {
-      res.status(500).json({ message: 'Server error', error: String(error) });
-    }
-  });
-
-  app.post('/api/debug/create-test-user', async (req, res) => {
-    if (!supabase) {
-      return res.status(503).json({ message: 'Supabase not configured' });
-    }
-    
-    try {
-      const hashedPassword = await bcrypt.hash('test123', 10);
-      
-      // Create test users
-      const testUsers = [
-        { username: 'Karthik', email: 'karthikb@relai.world', password: hashedPassword, role: 'agent' },
-        { username: 'Admin', email: 'admin@relai.world', password: hashedPassword, role: 'admin' }
-      ];
-      
-      for (const user of testUsers) {
-        // Check if exists
-        const { data: existing } = await supabase
-          .from('UsersData')
-          .select('id')
-          .eq('email', user.email)
-          .maybeSingle();
-        
-        if (existing) {
-          // Update password
-          await supabase
-            .from('UsersData')
-            .update({ password: hashedPassword })
-            .eq('email', user.email);
-        } else {
-          // Insert new
-          await supabase
-            .from('UsersData')
-            .insert([user]);
-        }
-      }
-      
-      res.json({ message: 'Test users created/updated with password: test123' });
-    } catch (error) {
-      res.status(500).json({ message: 'Server error', error: String(error) });
-    }
-  });
-
   // === PROPERTIES ===
 
   app.get(api.properties.list.path, async (req, res) => {
