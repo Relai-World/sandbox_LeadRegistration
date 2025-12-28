@@ -6,8 +6,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { insertPropertySchema, insertLeadSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
-import { db } from "./db";
-import { sql } from "drizzle-orm";
+import { supabase } from "./supabase";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -28,15 +27,24 @@ export async function registerRoutes(
         return res.status(400).json({ message: 'Email and password are required' });
       }
 
+      if (!supabase) {
+        return res.status(503).json({ message: 'Database not available. Please configure Supabase.' });
+      }
+
       const normalizedEmail = email.toLowerCase().trim();
       console.log('Login attempt for:', normalizedEmail);
 
-      // Query the UsersData table
-      const result = await db.execute(
-        sql`SELECT id, username, email, password, role FROM "UsersData" WHERE email = ${normalizedEmail}`
-      );
+      // Query the UsersData table via Supabase
+      const { data: user, error } = await supabase
+        .from('UsersData')
+        .select('id, username, email, password, role')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
 
-      const user = result.rows[0] as any;
+      if (error) {
+        console.error('Supabase query error:', error);
+        return res.status(500).json({ message: 'Database error during login' });
+      }
 
       if (!user) {
         console.log('User not found:', normalizedEmail);
@@ -77,24 +85,40 @@ export async function registerRoutes(
         return res.status(400).json({ message: 'Username, email, and password are required' });
       }
 
+      if (!supabase) {
+        return res.status(503).json({ message: 'Database not available. Please configure Supabase.' });
+      }
+
       const normalizedEmail = email.toLowerCase().trim();
 
-      // Check if user exists
-      const existing = await db.execute(
-        sql`SELECT id FROM "UsersData" WHERE email = ${normalizedEmail}`
-      );
+      // Check if user exists via Supabase
+      const { data: existingUser, error: checkError } = await supabase
+        .from('UsersData')
+        .select('email')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
 
-      if (existing.rows.length > 0) {
+      if (checkError) {
+        console.error('Supabase query error:', checkError);
+        return res.status(500).json({ message: 'Database error during registration' });
+      }
+
+      if (existingUser) {
         return res.status(400).json({ message: 'Email already in use' });
       }
 
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Insert new user
-      await db.execute(
-        sql`INSERT INTO "UsersData" (username, email, password, role) VALUES (${username}, ${normalizedEmail}, ${hashedPassword}, ${role})`
-      );
+      // Insert new user via Supabase
+      const { error: insertError } = await supabase
+        .from('UsersData')
+        .insert([{ username, email: normalizedEmail, password: hashedPassword, role }]);
+
+      if (insertError) {
+        console.error('Supabase insert error:', insertError);
+        return res.status(500).json({ message: 'Error creating user account' });
+      }
 
       res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
@@ -105,6 +129,69 @@ export async function registerRoutes(
 
   app.get('/api/test', (req, res) => {
     res.json({ message: 'API is working' });
+  });
+
+  // Debug endpoint to check Supabase users and add test users
+  app.get('/api/debug/users', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Supabase not configured' });
+    }
+    
+    try {
+      const { data: users, error } = await supabase
+        .from('UsersData')
+        .select('id, username, email, role');
+      
+      if (error) {
+        return res.status(500).json({ message: 'Error fetching users', error: error.message });
+      }
+      
+      res.json({ users });
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error: String(error) });
+    }
+  });
+
+  app.post('/api/debug/create-test-user', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Supabase not configured' });
+    }
+    
+    try {
+      const hashedPassword = await bcrypt.hash('test123', 10);
+      
+      // Create test users
+      const testUsers = [
+        { username: 'Karthik', email: 'karthikb@relai.world', password: hashedPassword, role: 'agent' },
+        { username: 'Admin', email: 'admin@relai.world', password: hashedPassword, role: 'admin' }
+      ];
+      
+      for (const user of testUsers) {
+        // Check if exists
+        const { data: existing } = await supabase
+          .from('UsersData')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        
+        if (existing) {
+          // Update password
+          await supabase
+            .from('UsersData')
+            .update({ password: hashedPassword })
+            .eq('email', user.email);
+        } else {
+          // Insert new
+          await supabase
+            .from('UsersData')
+            .insert([user]);
+        }
+      }
+      
+      res.json({ message: 'Test users created/updated with password: test123' });
+    } catch (error) {
+      res.status(500).json({ message: 'Server error', error: String(error) });
+    }
   });
 
   // === PROPERTIES ===
