@@ -321,8 +321,33 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       });
       return;
     }
-    setLeadName('');
-    setLeadMobile('');
+    
+    // Extract lead IDs from selected property keys (format: leadId-propertyKey)
+    const selectedLeadIds = new Set<number>();
+    selectedPropertyKeys.forEach(key => {
+      const leadId = parseInt(key.split('-')[0], 10);
+      if (!isNaN(leadId)) {
+        selectedLeadIds.add(leadId);
+      }
+    });
+    
+    // If all selected properties belong to the same lead, auto-fill lead info
+    if (selectedLeadIds.size === 1) {
+      const leadId = Array.from(selectedLeadIds)[0];
+      const lead = leads.find(l => l.id === leadId);
+      if (lead) {
+        setLeadName(lead.client_name || '');
+        setLeadMobile(lead.client_mobile || '');
+      } else {
+        setLeadName('');
+        setLeadMobile('');
+      }
+    } else {
+      // Multiple leads selected, leave fields empty for manual entry
+      setLeadName('');
+      setLeadMobile('');
+    }
+    
     setLeadModalOpen(true);
   };
 
