@@ -1,0 +1,169 @@
+{
+    "message": "Property saved successfully",
+    "data": {
+        "id": "53845dc9-b686-4b17-a035-f1a8f44fa41b",
+        "rera_number": "P02200007597",
+        "projectname": "KRISHNA VANAM",
+        "buildername": "KALASHA REALTORS",
+        "baseprojectprice": 0,
+        "projectbrochure": "Sree Nandan Krishna Vanam Brochure.pdf",
+        "contact": null,
+        "projectlocation": "Nandan Krishna Vanam",
+        "project_type": "Apartment",
+        "buildingname": null,
+        "communitytype": "Gated Community",
+        "total_land_area": "0.95",
+        "number_of_towers": 1,
+        "number_of_floors": 5,
+        "number_of_flats_per_floor": 13,
+        "total_number_of_units": 65,
+        "project_launch_date": null,
+        "possession_date": "2025-12-31T00:00:00+00:00",
+        "construction_status": "Ready to Move in",
+        "open_space": 70,
+        "carpet_area_percentage": 75,
+        "floor_to_ceiling_height": 10,
+        "price_per_sft": 5299,
+        "external_amenities": null,
+        "specification": null,
+        "powerbackup": "Partial",
+        "no_of_passenger_lift": 2,
+        "no_of_service_lift": 0,
+        "visitor_parking": "yes",
+        "ground_vehicle_movement": "yes",
+        "configurations": [
+            {
+                "type": "3 BHK",
+                "facing": "East",
+                "sizeUnit": "Sq ft",
+                "sizeRange": 1770,
+                "No_of_car_Parking": 2
+            },
+            {
+                "type": "3 BHK",
+                "facing": "East",
+                "sizeUnit": "Sq ft",
+                "sizeRange": 1785,
+                "No_of_car_Parking": 2
+            },
+            {
+                "type": "3 BHK",
+                "facing": "East",
+                "sizeUnit": "Sq ft",
+                "sizeRange": 1645,
+                "No_of_car_Parking": 2
+            },
+            {
+                "type": "3 BHK",
+                "facing": "North",
+                "sizeUnit": "Sq ft",
+                "sizeRange": 1450,
+                "No_of_car_Parking": 2
+            },
+            {
+                "type": "3 BHK",
+                "facing": "East",
+                "sizeUnit": "Sq ft",
+                "sizeRange": 1645,
+                "No_of_car_Parking": 2
+            },
+            {
+                "type": "3 BHK",
+                "facing": "West",
+                "sizeUnit": "Sq ft",
+                "sizeRange": 1710,
+                "No_of_car_Parking": 2
+            },
+            {
+                "type": "3 BHK",
+                "facing": "West",
+                "sizeUnit": "Sq ft",
+                "sizeRange": 1400,
+                "No_of_car_Parking": 2
+            },
+            {
+                "type": "3 BHK",
+                "facing": "East",
+                "sizeUnit": "Sq ft",
+                "sizeRange": 1785,
+                "No_of_car_Parking": "2"
+            },
+            {
+                "type": "2 BHK",
+                "facing": "East",
+                "sizeUnit": "Sq ft",
+                "sizeRange": 1335,
+                "No_of_car_Parking": 2
+            }
+        ],
+        "amount_for_extra_car_parking": 0,
+        "home_loan": null,
+        "previous_complaints_on_builder": null,
+        "complaint_details": null,
+        "construction_material": "Concrete",
+        "commission_percentage": 0,
+        "what_is_there_price": null,
+        "what_is_relai_price": null,
+        "after_agreement_of_sale_what_is_payout_time_period": 30,
+        "is_lead_registration_required_before_site_visit": null,
+        "turnaround_time_for_lead_acknowledgement": 24,
+        "is_there_validity_period_for_registered_lead": "no",
+        "validity_period_value": null,
+        "person_to_confirm_registration": [
+            {
+                "name": "hello",
+                "contact": "9876543334"
+            }
+        ],
+        "notes_comments_on_lead_registration_workflow": null,
+        "accepted_modes_of_lead_registration": [
+            {
+                "Email": {
+                    "details": "",
+                    "enabled": "no"
+                },
+                "Web_Form": {
+                    "details": "",
+                    "enabled": "no"
+                },
+                "WhatsApp": {
+                    "details": "",
+                    "enabled": "no"
+                },
+                "CRM_App_Access": {
+                    "details": "",
+                    "enabled": "no"
+                },
+                "During_Site_Visit": "yes"
+            }
+        ],
+        "status": "Submitted",
+        "useremail": "admin@relai.world",
+        "poc_name": "hello",
+        "poc_contact": 9876543334,
+        "poc_role": "tech",
+        "createdat": "2025-11-18T15:27:57.767134+00:00",
+        "updatedat": "2025-11-18T15:27:57.767134+00:00",
+        "verified": false,
+        "areaname": null,
+        "pricesheet_link": null,
+        "total_buildup_area": null,
+        "uds": null,
+        "fsi": null,
+        "main_door_height": null,
+        "builder_age": null,
+        "builder_total_properties": null,
+        "builder_upcoming_properties": null,
+        "builder_completed_properties": null,
+        "builder_ongoing_projects": null,
+        "builder_origin_city": null,
+        "builder_operating_locations": [],
+        "available_banks_for_loan": [],
+        "floor_rise_charges": null,
+        "floor_rise_amount_per_floor": null,
+        "floor_rise_applicable_above_floor_no": null,
+        "facing_charges": null,
+        "preferential_location_charges": null,
+        "preferential_location_charges_conditions": null
+    }
+}

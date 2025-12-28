@@ -1,0 +1,43 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@shared/routes";
+import { useToast } from "@/hooks/use-toast";
+
+export function useProfile() {
+  return useQuery({
+    queryKey: [api.profile.get.path],
+    queryFn: async () => {
+      const res = await fetch(api.profile.get.path, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      return api.profile.get.responses[200].parse(await res.json());
+    },
+    retry: false,
+  });
+}
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (data: { 
+      role?: "admin" | "agent"; 
+      phoneNumber?: string; 
+      agencyName?: string;
+      licenseNumber?: string;
+    }) => {
+      const res = await fetch(api.profile.update.path, {
+        method: api.profile.update.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error("Failed to update profile");
+      return api.profile.update.responses[200].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.profile.get.path] });
+      toast({ title: "Success", description: "Profile updated successfully" });
+    },
+  });
+}

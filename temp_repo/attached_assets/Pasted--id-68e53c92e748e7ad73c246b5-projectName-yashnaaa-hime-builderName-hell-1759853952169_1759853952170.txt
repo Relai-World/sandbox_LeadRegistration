@@ -1,0 +1,75 @@
+{
+    "id": "68e53c92e748e7ad73c246b5",
+    "projectName": "yashnaaa hime",
+    "builderName": "hello rishika",
+    "createdDate": "Oct 7, 2025",
+    "status": "draft",
+    "formData": {
+        "person_to_confirm_registration": {
+            "name": "Not specified",
+            "contact": 0
+        },
+        "Accepted_Modes_of_Lead_Registration": {
+            "WhatsApp": "Not specified",
+            "Email": "Not specified",
+            "Web_Form": "Not specified",
+            "CRM_App_Access": "Not specified",
+            "Physical_Register_Along_With_Lead": "Not specified",
+            "Others": "Not specified"
+        },
+        "_id": "68e53c92e748e7ad73c246b5",
+        "RERA_Number": "P)UYT098765",
+        "ProjectName": "yashnaaa hime",
+        "BuilderName": "hello rishika",
+        "BaseProjectPrice": 10000000,
+        "BuildingType": "Apartment",
+        "CommunityType": "Gated Community",
+        "Total_land_Area": "5",
+        "Number_of_Towers": 5,
+        "Number_of_Floors": 23,
+        "Number_of_Flats_Per_Floor": 10,
+        "Total_Number_of_Units": 1150,
+        "Possession_Date": "2025-11-07T00:00:00.000Z",
+        "Construction_Status": "Ongoing",
+        "Open_Space": 80,
+        "Carpet_area_Percentage": 20,
+        "Floor_to_Ceiling_Height": 10,
+        "Price_per_sft": 5000,
+        "Specification": "",
+        "PowerBackup": "Partial",
+        "No_of_Passenger_lift": 2,
+        "No_of_Service_lift": 1,
+        "Visitor_Parking": "yes",
+        "Ground_vehicle_Movement": "no",
+        "configurations": [
+            {
+                "type": "3.5 BHK",
+                "sizeRange": 2300,
+                "sizeUnit": "Sq ft",
+                "No_of_car_Parking": 2,
+                "_id": "68e53c92e748e7ad73c246b6"
+            },
+            {
+                "type": "5 BHK",
+                "sizeRange": 2300,
+                "sizeUnit": "Sq ft",
+                "No_of_car_Parking": 3,
+                "_id": "68e53c92e748e7ad73c246b7"
+            }
+        ],
+        "Amount_For_Extra_Car_Parking": 34000,
+        "Construction_Material": "Red Bricks",
+        "Commission_percentage": 0,
+        "After_agreement_of_sale_what_is_payout_time_period": 0,
+        "Turnaround_Time_for_Lead_Acknowledgement": 24,
+        "Is_there_validity_period_for_registered_lead": "no",
+        "status": "Unverified",
+        "UserEmail": "harshithv@relai.world",
+        "POC_Name": "bhnjmk",
+        "POC_Contact": 9898989899,
+        "POC_Role": "gvbhj",
+        "createdAt": "2025-10-07T16:15:14.265Z",
+        "updatedAt": "2025-10-07T16:15:14.266Z",
+        "__v": 0
+    }
+}

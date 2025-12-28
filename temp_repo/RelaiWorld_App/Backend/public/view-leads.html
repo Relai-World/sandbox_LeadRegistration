@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zoho Leads Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .controls label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .controls input,
+        .controls select {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .controls input:focus,
+        .controls select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .controls button {
+            padding: 10px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .controls button:active {
+            transform: translateY(0);
+        }
+
+        .stats {
+            padding: 20px 30px;
+            background: #fff;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-item .label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-item .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            font-size: 1.2rem;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #c33;
+        }
+
+        .lead-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+
+        .lead-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .lead-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .lead-id {
+            font-size: 0.9rem;
+            color: #999;
+            font-weight: 600;
+        }
+
+        .lead-date {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .lead-mobile {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .lead-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .detail-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .detail-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 30px;
+        }
+
+        .pagination button {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination .page-info {
+            font-weight: 600;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Zoho Leads Viewer</h1>
+            <p>View and manage all your lead registrations</p>
+        </div>
+
+        <div class="controls">
+            <button onclick="loadLeads()">🔄 Refresh All Leads</button>
+            <button onclick="exportToCSV()">📥 Export CSV</button>
+        </div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat-item">
+                <div class="label">Total Leads</div>
+                <div class="value" id="totalLeads">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">Current Page</div>
+                <div class="value" id="currentPage">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="label">Total Pages</div>
+                <div class="value" id="totalPages">0</div>
+            </div>
+        </div>
+
+        <div class="content" id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading leads...</p>
+            </div>
+        </div>
+
+        <div class="pagination" id="pagination" style="display: none;">
+            <button id="prevBtn" onclick="previousPage()">← Previous</button>
+            <span class="page-info" id="pageInfo">Page 1 of 1</span>
+            <button id="nextBtn" onclick="nextPage()">Next →</button>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let allLeadsData = [];
+
+        async function loadLeads() {
+            const content = document.getElementById('content');
+
+            content.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading all leads...</p></div>';
+
+            try {
+                // Fetch all leads at once with a very high limit
+                const response = await fetch(`http://localhost:8888/api/lead-registration?page=1&limit=10000`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || data.message || 'Failed to load leads');
+                }
+
+                allLeadsData = data.data || [];
+                const pagination = data.pagination || {};
+
+                // Update stats
+                document.getElementById('stats').style.display = 'flex';
+                document.getElementById('totalLeads').textContent = pagination.total || allLeadsData.length;
+                document.getElementById('currentPage').textContent = '1';
+                document.getElementById('totalPages').textContent = '1 (All Loaded)';
+
+                // Display all leads
+                displayLeads(allLeadsData);
+
+                // Hide pagination since we're showing all
+                document.getElementById('pagination').style.display = 'none';
+
+            } catch (error) {
+                content.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error Loading Leads</h3>
+                        <p>${error.message}</p>
+                        <p style="margin-top: 10px; font-size: 0.9rem;">Make sure the Netlify dev server is running on port 8888</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayLeads(leads) {
+            const content = document.getElementById('content');
+
+            if (!leads || leads.length === 0) {
+                content.innerHTML = '<div class="loading"><p>No leads found</p></div>';
+                return;
+            }
+
+            content.innerHTML = leads.map(lead => `
+                <div class="lead-card">
+                    <div class="lead-header">
+                        <span class="lead-id">ID: ${lead.id}</span>
+                        <span class="lead-date">Created: ${new Date(lead.created_at).toLocaleString()}</span>
+                    </div>
+                    <div class="lead-mobile">📱 ${lead.client_mobile}</div>
+                    <div class="lead-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Requirement Name</div>
+                            <div class="detail-value">${lead.requirement_name || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Requirement Number</div>
+                            <div class="detail-value">#${lead.requirement_number}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Budget Range</div>
+                            <div class="detail-value">${lead.preferences?.budgetRange || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Configuration</div>
+                            <div class="detail-value">${lead.preferences?.configuration || 'N/A'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Locations</div>
+                            <div class="detail-value">${lead.preferences?.location?.substring(0, 50) || 'N/A'}...</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Matched Properties</div>
+                            <div class="detail-value">${lead.preferences?.matchedPropertyCount || 0} properties</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const pageInfo = document.getElementById('pageInfo');
+
+            pagination.style.display = 'flex';
+            pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+
+            prevBtn.disabled = currentPage <= 1;
+            nextBtn.disabled = currentPage >= totalPages;
+        }
+
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadLeads();
+            }
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadLeads();
+            }
+        }
+
+        function resetToFirstPage() {
+            currentPage = 1;
+            loadLeads();
+        }
+
+        function exportToCSV() {
+            if (!allLeadsData || allLeadsData.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const headers = ['ID', 'Mobile', 'Requirement Name', 'Requirement #', 'Budget Range', 'Configuration', 'Locations', 'Matched Properties', 'Created At'];
+            const rows = allLeadsData.map(lead => [
+                lead.id,
+                lead.client_mobile,
+                lead.requirement_name || '',
+                lead.requirement_number,
+                lead.preferences?.budgetRange || '',
+                lead.preferences?.configuration || '',
+                lead.preferences?.location || '',
+                lead.preferences?.matchedPropertyCount || 0,
+                new Date(lead.created_at).toLocaleString()
+            ]);
+
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `zoho-leads-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Load leads on page load
+        loadLeads();
+    </script>
+</body>
+
+</html>

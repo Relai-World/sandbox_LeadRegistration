@@ -1,0 +1,58 @@
+{
+    "message": "Validation failed",
+    "error": "VerifiedResidentialData validation failed: Accepted_Modes_of_Lead_Registration.WhatsApp.enabled: Cast to string failed for value \"{ enabled: 'no', details: '' }\" (type Object) at path \"Accepted_Modes_of_Lead_Registration.WhatsApp.enabled\", Accepted_Modes_of_Lead_Registration.Email.enabled: Cast to string failed for value \"{ enabled: 'no', details: '' }\" (type Object) at path \"Accepted_Modes_of_Lead_Registration.Email.enabled\", Accepted_Modes_of_Lead_Registration.Web_Form.enabled: Cast to string failed for value \"{ enabled: 'no', details: '' }\" (type Object) at path \"Accepted_Modes_of_Lead_Registration.Web_Form.enabled\", Accepted_Modes_of_Lead_Registration.CRM_App_Access.enabled: Cast to string failed for value \"{ enabled: 'no', details: '' }\" (type Object) at path \"Accepted_Modes_of_Lead_Registration.CRM_App_Access.enabled\"",
+    "details": {
+        "Accepted_Modes_of_Lead_Registration.WhatsApp.enabled": {
+            "stringValue": "\"{ enabled: 'no', details: '' }\"",
+            "valueType": "Object",
+            "kind": "string",
+            "value": {
+                "enabled": "no",
+                "details": ""
+            },
+            "path": "Accepted_Modes_of_Lead_Registration.WhatsApp.enabled",
+            "reason": null,
+            "name": "CastError",
+            "message": "Cast to string failed for value \"{ enabled: 'no', details: '' }\" (type Object) at path \"Accepted_Modes_of_Lead_Registration.WhatsApp.enabled\""
+        },
+        "Accepted_Modes_of_Lead_Registration.Email.enabled": {
+            "stringValue": "\"{ enabled: 'no', details: '' }\"",
+            "valueType": "Object",
+            "kind": "string",
+            "value": {
+                "enabled": "no",
+                "details": ""
+            },
+            "path": "Accepted_Modes_of_Lead_Registration.Email.enabled",
+            "reason": null,
+            "name": "CastError",
+            "message": "Cast to string failed for value \"{ enabled: 'no', details: '' }\" (type Object) at path \"Accepted_Modes_of_Lead_Registration.Email.enabled\""
+        },
+        "Accepted_Modes_of_Lead_Registration.Web_Form.enabled": {
+            "stringValue": "\"{ enabled: 'no', details: '' }\"",
+            "valueType": "Object",
+            "kind": "string",
+            "value": {
+                "enabled": "no",
+                "details": ""
+            },
+            "path": "Accepted_Modes_of_Lead_Registration.Web_Form.enabled",
+            "reason": null,
+            "name": "CastError",
+            "message": "Cast to string failed for value \"{ enabled: 'no', details: '' }\" (type Object) at path \"Accepted_Modes_of_Lead_Registration.Web_Form.enabled\""
+        },
+        "Accepted_Modes_of_Lead_Registration.CRM_App_Access.enabled": {
+            "stringValue": "\"{ enabled: 'no', details: '' }\"",
+            "valueType": "Object",
+            "kind": "string",
+            "value": {
+                "enabled": "no",
+                "details": ""
+            },
+            "path": "Accepted_Modes_of_Lead_Registration.CRM_App_Access.enabled",
+            "reason": null,
+            "name": "CastError",
+            "message": "Cast to string failed for value \"{ enabled: 'no', details: '' }\" (type Object) at path \"Accepted_Modes_of_Lead_Registration.CRM_App_Access.enabled\""
+        }
+    }
+}

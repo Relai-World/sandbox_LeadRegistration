@@ -1,0 +1,27 @@
+service: relai-backend
+
+frameworkVersion: '4'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  environment:
+    MONGODB_URI: ${env:MONGODB_URI}
+    SUPABASE_URL: ${env:SUPABASE_URL}
+    SUPABASE_SERVICE_KEY: ${env:SUPABASE_SERVICE_KEY}
+    NODE_ENV: ${opt:stage, 'development'}
+
+functions:
+  api:
+    handler: handler.handler
+    events:
+      - httpApi: '*'
+
+package:
+  exclude:
+    - node_modules/**/.cache/**
+
+plugins:
+  - serverless-offline
