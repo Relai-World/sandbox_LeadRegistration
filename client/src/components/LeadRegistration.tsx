@@ -166,6 +166,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   const [shareLink, setShareLink] = useState('');
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [generatingShareLink, setGeneratingShareLink] = useState(false);
+  const [pendingShareLink, setPendingShareLink] = useState(false);
   const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
   const [leadStatuses, setLeadStatuses] = useState<Record<number, string>>({});
   const { toast } = useToast();
@@ -438,11 +439,16 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
     setLeadMobile(mobile);
     setLeadModalOpen(false);
 
-    // Generate and download PDF with all selected properties
-    await generateAndDownloadPDF(name, mobile);
-
-    // Clear selections after PDF is generated
-    setSelectedPropertyKeys(new Set());
+    // Check if we're generating a share link or a PDF
+    if (pendingShareLink) {
+      setPendingShareLink(false);
+      await generateShareLinkWithInfo(name, mobile);
+    } else {
+      // Generate and download PDF with all selected properties
+      await generateAndDownloadPDF(name, mobile);
+      // Clear selections after PDF is generated
+      setSelectedPropertyKeys(new Set());
+    }
   };
 
   const generateAndDownloadPDF = async (leadName: string, leadMobile: string) => {
@@ -563,15 +569,19 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
     }
 
     if (!name || !mobile) {
-      toast({
-        title: 'Lead info required',
-        description: 'Please use the Report button to enter lead details first.',
-        variant: 'destructive',
-      });
+      // Pre-fill with what we have and open modal
+      setLeadName(name);
+      setLeadMobile(mobile);
+      setPendingShareLink(true);
       setLeadModalOpen(true);
       return;
     }
 
+    // Generate share link directly with available info
+    await generateShareLinkWithInfo(name, mobile);
+  };
+
+  const generateShareLinkWithInfo = async (name: string, mobile: string) => {
     setGeneratingShareLink(true);
     
     try {
@@ -1536,6 +1546,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
         open={leadModalOpen}
         onClose={() => {
           setLeadModalOpen(false);
+          setPendingShareLink(false);
           // Keep selections when modal is closed - user can try again
         }}
         onSubmit={handleLeadInfoSubmit}
