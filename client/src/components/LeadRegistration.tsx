@@ -1120,25 +1120,12 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                       return true;
                     });
 
-                    const zohoName = zohoLeadNames[lead.client_mobile] || '';
-                    // Create a more meaningful display name
-                    // Format mobile number: show last 10 digits for cleaner display
-                    const formattedMobile = lead.client_mobile.slice(-10);
-                    const displayName = zohoName ||
-                      lead.client_name ||
-                      lead.requirement_name ||
-                      `Lead ${formattedMobile}`;
+                    // Lead Name is empty until Zoho CRM integration is connected
+                    const displayName = '';
 
+                    // Skip leads with no shortlisted properties (backend should filter, but double-check)
                     if (shortlistedList.length === 0) {
-                      return (
-                        <tr key={lead.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-gray-900">
-                            {displayName}
-                          </td>
-                          <td className="px-3 py-2 text-gray-600">{lead.client_mobile}</td>
-                          <td className="px-3 py-2 text-gray-400" colSpan={7}>No shortlisted properties</td>
-                        </tr>
-                      );
+                      return null;
                     }
 
                     return shortlistedList.map((property, propIndex) => {

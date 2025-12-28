@@ -179,9 +179,12 @@ export async function registerRoutes(
       const search = (req.query.search as string)?.trim() || '';
 
       // Build query with optional search filter
+      // Only fetch leads that have actual shortlisted_properties values
       let query = supabase
         .from('client_Requirements')
-        .select('*', { count: 'exact' });
+        .select('*', { count: 'exact' })
+        .not('shortlisted_properties', 'is', null)
+        .neq('shortlisted_properties', '[]');
 
       // Apply search filter if provided
       if (search) {
