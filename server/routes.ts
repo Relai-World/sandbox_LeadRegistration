@@ -131,6 +131,245 @@ export async function registerRoutes(
     res.json({ message: 'API is working' });
   });
 
+  // === DRAFTS ROUTE (Frontend calls /api/properties/drafts/:email) ===
+  
+  app.get('/api/properties/drafts/:email', async (req, res) => {
+    const { email } = req.params;
+
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const decodedEmail = decodeURIComponent(email);
+      console.log('Fetching drafts for email:', decodedEmail);
+      
+      const { data, error } = await supabase
+        .from('Unverified_Properties')
+        .select('*')
+        .eq('useremail', decodedEmail)
+        .order('updatedat', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching drafts:', error);
+        return res.status(500).json({ message: 'Database error' });
+      }
+
+      // Return empty array if no data
+      res.status(200).json(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+  // === LEAD REGISTRATION ROUTES (Frontend calls /api/lead-registration/*) ===
+
+  // Get all leads with pagination
+  app.get('/api/lead-registration', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const offset = (page - 1) * limit;
+
+      const { data: leads, error, count } = await supabase
+        .from('client_Requirements')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (error) {
+        console.error('Error fetching leads:', error);
+        return res.status(500).json({ message: 'Database error' });
+      }
+
+      const totalPages = count ? Math.ceil(count / limit) : 0;
+
+      res.status(200).json({
+        success: true,
+        data: leads || [],
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1
+        }
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+  // Create lead
+  app.post('/api/lead-registration', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const { client_mobile, requirement_name, preferences, matched_properties, shortlisted_properties, site_visits } = req.body;
+
+      if (!client_mobile) {
+        return res.status(400).json({ message: 'Client mobile number is required' });
+      }
+
+      // Get next requirement number for this mobile
+      const { data: existingLeads } = await supabase
+        .from('client_Requirements')
+        .select('requirement_number')
+        .eq('client_mobile', client_mobile)
+        .order('requirement_number', { ascending: false })
+        .limit(1);
+
+      let nextRequirementNumber = 1;
+      if (existingLeads && existingLeads.length > 0) {
+        nextRequirementNumber = existingLeads[0].requirement_number + 1;
+      }
+
+      const leadData = {
+        client_mobile,
+        requirement_number: nextRequirementNumber,
+        requirement_name: requirement_name || '',
+        preferences: preferences || {},
+        matched_properties: matched_properties || [],
+        shortlisted_properties: shortlisted_properties || [],
+        site_visits: site_visits || []
+      };
+
+      const { data: newLead, error } = await supabase
+        .from('client_Requirements')
+        .insert([leadData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating lead:', error);
+        return res.status(500).json({ message: 'Error creating lead' });
+      }
+
+      res.status(201).json({ message: 'Lead created successfully', data: newLead });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+  // Get POC details
+  app.post('/api/lead-registration/poc-details', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const { rera_numbers } = req.body;
+
+      if (!rera_numbers || !Array.isArray(rera_numbers) || rera_numbers.length === 0) {
+        return res.status(200).json({ success: true, data: {} });
+      }
+
+      const limitedReraNumbers = rera_numbers.slice(0, 100);
+
+      const { data: pocData, error } = await supabase
+        .from('unified_data')
+        .select('rera_number, projectname, buildername, poc_name, poc_contact, poc_role, GRID_Score, baseprojectprice')
+        .in('rera_number', limitedReraNumbers);
+
+      if (error) {
+        console.error('Error fetching POC details:', error);
+        return res.status(500).json({ message: 'Database error' });
+      }
+
+      const pocMap: Record<string, any> = {};
+      (pocData || []).forEach((item: any) => {
+        if (item.rera_number) {
+          pocMap[item.rera_number] = {
+            poc_name: item.poc_name || '',
+            poc_contact: item.poc_contact || '',
+            poc_role: item.poc_role || '',
+            projectname: item.projectname || '',
+            buildername: item.buildername || '',
+            grid_score: item.GRID_Score || '',
+            price_range: item.baseprojectprice || ''
+          };
+        }
+      });
+
+      res.status(200).json({ success: true, data: pocMap });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+  // Get Zoho leads (placeholder - returns empty for now)
+  app.get('/api/lead-registration/zoho-leads', async (req, res) => {
+    res.status(200).json({ success: true, data: [] });
+  });
+
+  // Update lead
+  app.put('/api/lead-registration/:id', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const { id } = req.params;
+      const updateData = {
+        ...req.body,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: updated, error } = await supabase
+        .from('client_Requirements')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating lead:', error);
+        return res.status(500).json({ message: 'Error updating lead' });
+      }
+
+      res.status(200).json({ message: 'Lead updated successfully', data: updated });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+  // Delete lead
+  app.delete('/api/lead-registration/:id', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const { id } = req.params;
+      const { error } = await supabase
+        .from('client_Requirements')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting lead:', error);
+        return res.status(500).json({ message: 'Error deleting lead' });
+      }
+
+      res.status(200).json({ message: 'Lead deleted successfully' });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
   // === VERIFIED PROPERTIES ROUTES ===
 
   // Get status count for an agent
