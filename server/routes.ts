@@ -1925,6 +1925,88 @@ export async function registerRoutes(
     }
   });
 
+  // Save friend info for share link
+  app.post('/api/share/:token/friend', async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { friend_name, friend_number } = req.body;
+
+      if (!token || !friend_name || !friend_number) {
+        return res.status(400).json({ success: false, message: 'Token, friend name, and friend number are required' });
+      }
+
+      if (!supabase) {
+        return res.status(503).json({ success: false, message: 'Database not available' });
+      }
+
+      console.log('Saving friend info for token:', token);
+
+      // Find the record with this share token
+      const { data: allRecords, error: fetchError } = await supabase
+        .from('client_Requirements')
+        .select('id, share_links');
+
+      if (fetchError || !allRecords) {
+        console.error('Error fetching records:', fetchError);
+        return res.status(500).json({ success: false, message: 'Failed to find share link' });
+      }
+
+      let foundRecord: any = null;
+      let foundLinkIndex: number = -1;
+
+      for (const record of allRecords) {
+        let shareLinks = record.share_links;
+        
+        if (typeof shareLinks === 'string') {
+          try {
+            shareLinks = JSON.parse(shareLinks);
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!Array.isArray(shareLinks)) continue;
+        
+        const linkIndex = shareLinks.findIndex((link: any) => link.token === token);
+        if (linkIndex >= 0) {
+          foundRecord = { ...record, share_links: shareLinks };
+          foundLinkIndex = linkIndex;
+          break;
+        }
+      }
+
+      if (!foundRecord || foundLinkIndex < 0) {
+        return res.status(404).json({ success: false, message: 'Share link not found' });
+      }
+
+      // Update the share link with friend info
+      const updatedLinks = [...foundRecord.share_links];
+      updatedLinks[foundLinkIndex] = {
+        ...updatedLinks[foundLinkIndex],
+        friend_name,
+        friend_number,
+        friend_added_at: new Date().toISOString()
+      };
+
+      const { error: updateError } = await supabase
+        .from('client_Requirements')
+        .update({ share_links: JSON.stringify(updatedLinks) })
+        .eq('id', foundRecord.id);
+
+      if (updateError) {
+        console.error('Error updating friend info:', updateError);
+        return res.status(500).json({ success: false, message: 'Failed to save friend info' });
+      }
+
+      console.log('Friend info saved successfully for record:', foundRecord.id);
+      res.json({ success: true, message: 'Friend info saved successfully' });
+
+    } catch (error: any) {
+      console.error('Save friend info error:', error);
+      res.status(500).json({ success: false, message: 'Failed to save friend info', error: error.message });
+    }
+  });
+
   // === PDF GENERATION ===
   app.post('/api/pdf/generate-pdf', async (req, res) => {
     try {

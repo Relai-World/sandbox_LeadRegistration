@@ -3,7 +3,13 @@ import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Building2, MapPin, Phone, User, Calendar, Ruler, IndianRupee, Home, CheckCircle, Loader2, Star, Car, Trees, Building, Waves, Shield } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Building2, MapPin, Phone, User, Calendar, Ruler, IndianRupee, Home, CheckCircle, Loader2, Star, Car, Trees, Building, Waves, Shield, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import heroImage from "@assets/relai_hero.png";
 
 interface PropertyData {
@@ -23,6 +29,11 @@ const SharePage = () => {
   const [data, setData] = useState<ShareData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [friendModalOpen, setFriendModalOpen] = useState(false);
+  const [friendName, setFriendName] = useState("");
+  const [friendNumber, setFriendNumber] = useState("");
+  const [savingFriend, setSavingFriend] = useState(false);
+  const [expandedRestaurants, setExpandedRestaurants] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     const fetchShareData = async () => {
@@ -87,6 +98,53 @@ const SharePage = () => {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ')
       .trim();
+  };
+
+  const excludedDetailsFields = [
+    'id', 'google_place_id', 'google_place_name', 'google_place_address', 
+    'google_place_location', 'google_maps_location', 'amenities_updated_at',
+    'mobile_google_map_url', 'configsoldoutstatus', 'google_place_raw_data'
+  ];
+
+  const parseRestaurants = (data: any): { name: string; rating: number | null; distance: string }[] => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (typeof data === 'string') {
+      try {
+        const parsed = JSON.parse(data);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const handleFriendSubmit = async () => {
+    if (!friendName.trim() || !friendNumber.trim()) return;
+    
+    setSavingFriend(true);
+    try {
+      const response = await fetch(`/api/share/${token}/friend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ friend_name: friendName, friend_number: friendNumber })
+      });
+      
+      if (response.ok) {
+        const cleanNumber = friendNumber.replace(/\D/g, '');
+        const shareUrl = window.location.href;
+        const message = `Hi ${friendName}! Check out these property comparisons I found: ${shareUrl}`;
+        window.open(`https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`, '_blank');
+        setFriendModalOpen(false);
+        setFriendName("");
+        setFriendNumber("");
+      }
+    } catch (err) {
+      console.error('Error saving friend info:', err);
+    } finally {
+      setSavingFriend(false);
+    }
   };
 
   if (loading) {
@@ -302,7 +360,16 @@ const SharePage = () => {
               <div>
                 <p className="text-white/80">Personalized property comparison prepared for you</p>
               </div>
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-6 flex-wrap">
+                <Button 
+                  variant="outline" 
+                  className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                  onClick={() => setFriendModalOpen(true)}
+                  data-testid="button-discuss-friend"
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Discuss with your friend
+                </Button>
                 <div className="flex items-center gap-2">
                   <User className="h-5 w-5" />
                   <span data-testid="text-lead-name">{data.leadName}</span>
@@ -418,6 +485,31 @@ const SharePage = () => {
           {renderComparisonTable("Amenities & Features", amenitiesKeys, <Waves className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           {renderComparisonTable("Scores & Ratings", scoreKeys, <Star className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           {renderComparisonTable("Nearby Facilities Count", nearbyKeys, <MapPin className="h-5 w-5" style={{ color: '#3350a3' }} />)}
+          
+          <div className="mt-6 p-4 bg-muted/30 rounded-lg">
+            <h4 className="text-sm font-medium mb-3 text-muted-foreground">Interested in any of these properties?</h4>
+            <div className="flex flex-wrap gap-3">
+              {data.properties.map((property, idx) => {
+                const projectName = getValue(property, 'projectname') || `Property ${idx + 1}`;
+                return (
+                  <Button 
+                    key={idx}
+                    variant="outline"
+                    className="border-2"
+                    style={{ borderColor: '#3350a3', color: '#3350a3' }}
+                    data-testid={`button-book-visit-${idx}`}
+                    onClick={() => {
+                      const message = `Hi, I would like to book a site visit for ${projectName}. My details: ${data.leadName} - ${data.leadMobile}`;
+                      window.open(`https://wa.me/919876543210?text=${encodeURIComponent(message)}`, '_blank');
+                    }}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Book Site Visit - {projectName.substring(0, 20)}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
         </section>
 
         <Separator />
@@ -434,8 +526,9 @@ const SharePage = () => {
             const areaName = getValue(property, 'areaname');
             const googleRating = getValue(property, 'google_place_rating');
             const googleAddress = getValue(property, 'google_place_address');
-            const mapsUrl = getValue(property, 'mobile_google_map_url', 'google_maps_location', 'projectlocation');
+            const mapsUrl = getValue(property, 'projectlocation', 'mobile_google_map_url', 'google_maps_location');
             const brochure = getValue(property, 'projectbrochure');
+            const highRatedRestaurants = parseRestaurants(property['high_rated_restaurants']);
             
             const allKeys = Object.keys(property).filter(key => 
               !basicInfoKeys.includes(key) && 
@@ -446,7 +539,9 @@ const SharePage = () => {
               !scoreKeys.includes(key) &&
               !nearbyKeys.includes(key) &&
               !key.includes('nearest_') &&
-              !key.includes('google_place_raw') &&
+              !key.includes('google_place') &&
+              !key.includes('high_rated_restaurants') &&
+              !excludedDetailsFields.includes(key) &&
               isValidValue(property[key])
             );
             
@@ -496,6 +591,39 @@ const SharePage = () => {
                       </a>
                     )}
                   </div>
+
+                  {highRatedRestaurants.length > 0 && (
+                    <Collapsible 
+                      open={expandedRestaurants[idx]} 
+                      onOpenChange={(open) => setExpandedRestaurants(prev => ({ ...prev, [idx]: open }))}
+                      className="mb-4"
+                    >
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" className="w-full justify-between p-3 bg-muted/30 rounded-lg">
+                          <span className="flex items-center gap-2 text-sm font-medium">
+                            <Star className="h-4 w-4" style={{ color: '#3350a3' }} />
+                            High Rated Restaurants Nearby ({highRatedRestaurants.length})
+                          </span>
+                          {expandedRestaurants[idx] ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-2 space-y-2">
+                        {highRatedRestaurants.map((restaurant, rIdx) => (
+                          <div key={rIdx} className="flex items-center justify-between p-2 bg-muted/20 rounded text-sm">
+                            <span className="font-medium">{restaurant.name?.replace(/&amp;/g, '&')}</span>
+                            <div className="flex items-center gap-3 text-muted-foreground">
+                              {restaurant.rating && (
+                                <span className="flex items-center gap-1">
+                                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> {restaurant.rating}
+                                </span>
+                              )}
+                              <span>{restaurant.distance} km</span>
+                            </div>
+                          </div>
+                        ))}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
                   
                   {allKeys.length > 0 && (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -531,6 +659,62 @@ const SharePage = () => {
           <p className="mt-2 text-xs">For the right home, trust Relai.</p>
         </div>
       </footer>
+
+      <Dialog open={friendModalOpen} onOpenChange={setFriendModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" style={{ color: '#3350a3' }} />
+              Share with a Friend
+            </DialogTitle>
+            <DialogDescription>
+              Enter your friend's details to share this property comparison via WhatsApp.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="friend-name">Friend's Name</Label>
+              <Input
+                id="friend-name"
+                placeholder="Enter your friend's name"
+                value={friendName}
+                onChange={(e) => setFriendName(e.target.value)}
+                data-testid="input-friend-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="friend-number">Friend's Mobile Number</Label>
+              <Input
+                id="friend-number"
+                placeholder="e.g., 919876543210"
+                value={friendNumber}
+                onChange={(e) => setFriendNumber(e.target.value)}
+                data-testid="input-friend-number"
+              />
+              <p className="text-xs text-muted-foreground">Include country code (e.g., 91 for India)</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFriendModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleFriendSubmit}
+              disabled={!friendName.trim() || !friendNumber.trim() || savingFriend}
+              className="gap-2"
+              style={{ backgroundColor: '#3350a3' }}
+              data-testid="button-send-whatsapp"
+            >
+              {savingFriend ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <SiWhatsapp className="h-4 w-4" />
+              )}
+              Send via WhatsApp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
