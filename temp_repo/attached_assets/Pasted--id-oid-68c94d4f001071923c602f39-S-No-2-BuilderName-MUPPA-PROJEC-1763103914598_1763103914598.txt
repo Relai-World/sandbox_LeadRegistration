@@ -1,0 +1,90 @@
+{
+  "_id": {
+    "$oid": "68c94d4f001071923c602f39"
+  },
+  "S_No": 2,
+  "BuilderName": "MUPPA PROJECTS",
+  "ProjectName": "INDRAPRASTHA",
+  "RERA_Number": "P01100000141",
+  "AreaName": "Tellapur",
+  "PriceSheet": 16130,
+  "Possession_Date": "RTM",
+  "Base Project Price": 65994175,
+  "google_place_id": "#N/A",
+  "google_place_name": "#N/A",
+  "google_place_address": "#N/A",
+  "google_place_location": "#N/A",
+  "google_place_rating": 0,
+  "google_place_user_ratings_total": 0,
+  "google_maps_url": "#N/A",
+  "google_place_raw_data": "#N/A",
+  "hospitals_count": 0,
+  "shopping_malls_count": 0,
+  "schools_count": 0,
+  "restaurants_count": 0,
+  "restaurants_above_4_stars_count": 0,
+  "supermarkets_count": 0,
+  "it_offices_count": 0,
+  "metro_stations_count": 0,
+  "railway_stations_count": 0,
+  "nearest_hospitals": "#N/A",
+  "nearest_shopping_malls": "#N/A",
+  "nearest_schools": "#N/A",
+  "nearest_restaurants": "#N/A",
+  "high_rated_restaurants": "#N/A",
+  "nearest_supermarkets": "#N/A",
+  "nearest_it_offices": "#N/A",
+  "nearest_metro_station": "#N/A",
+  "nearest_railway_station": "#N/A",
+  "nearest_orr_access": "#N/A",
+  "connectivity_score": 0,
+  "amenities_score": 0,
+  "amenities_raw_data": "#N/A",
+  "amenities_updated_at": "#N/A",
+  "property_type": "#N/A",
+  "mobile_google_map_url": "#N/A",
+  "GRID_Score": 0,
+  "configurations": [
+    {
+      "type": "4BHK",
+      "facing": "East",
+      "sizeUnit": "Sq ft",
+      "sizeRange": "3410",
+      "sizeRangeSqYard": "235",
+      "BaseProjectPrice": "55003300"
+    },
+    {
+      "type": "4BHK",
+      "facing": "West",
+      "sizeUnit": "Sq ft",
+      "sizeRange": "3470",
+      "sizeRangeSqYard": "235",
+      "BaseProjectPrice": "53993200"
+    },
+    {
+      "type": "4BHK",
+      "facing": "West",
+      "sizeUnit": "Sq ft",
+      "sizeRange": "4045",
+      "sizeRangeSqYard": "300",
+      "BaseProjectPrice": "65994175"
+    },
+    {
+      "type": "4BHK",
+      "facing": "East",
+      "sizeUnit": "Sq ft",
+      "sizeRange": "4055",
+      "sizeRangeSqYard": "300",
+      "BaseProjectPrice": "67008875"
+    },
+    {
+      "type": "4BHK",
+      "facing": "North",
+      "sizeUnit": "Sq ft",
+      "sizeRange": "4095",
+      "sizeRangeSqYard": "300",
+      "BaseProjectPrice": "66994200"
+    }
+  ],
+  "processed_at": "2025-10-22T12:45:07.427Z"
+}

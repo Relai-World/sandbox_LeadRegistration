@@ -1,0 +1,125 @@
+I need you to create a Builder Data management feature in my admin panel. Here are the requirements:
+
+## DATABASE TABLES (Already exist in Supabase)
+
+Table 1 - builder_data:
+- id (bigserial, primary key)
+- rera_builder_name (text)
+- standard_builder_name (text)
+- builder_age (text)
+- builder_total_properties (text)
+- builder_upcoming_properties (text)
+- builder_completed_properties (text)
+- builder_ongoing_projects (text)
+- builder_origin_city (text)
+- builder_operating_locations (text)
+- previous_complaints_on_builder (text)
+- created_at (timestamp, default now())
+- updated_at (timestamp, default now())
+
+Table 2 - unified_data:
+- id (bigint, primary key)
+- projectname (text) - I need this field
+- buildername (text) - This should link to builder_data
+- Plus 100+ other fields
+
+## WHAT I NEED
+
+1. Add "Builder Data" menu item to the admin sidebar
+
+2. Create a Builder Data page with:
+   - A table showing all builder records
+   - "Add New" button to open the form
+   - "Edit" button on each row
+
+3. Create a form with THREE MAIN SECTIONS:
+
+   **SECTION 1 - Top Fields (Display in one row):**
+   - RERA ID (text input - this is the id field)
+   - Builder Name (text input - this is standard_builder_name)
+   - Project Name (dropdown - fetch from unified_data table's projectname field)
+
+   **SECTION 2 - All Other Fields (Below the top row):**
+   - RERA Builder Name (text input)
+   - Builder Age (text input)
+   - Builder Total Properties (text input)
+   - Builder Upcoming Properties (text input)
+   - Builder Completed Properties (text input)
+   - Builder Ongoing Projects (text input)
+   - Builder Origin City (text input)
+   - Builder Operating Locations (text input)
+   - Previous Complaints on Builder (textarea)
+
+## FORM LAYOUT STRUCTURE:
+┌─────────────────────────────────────────────────────────────┐
+│  RERA ID          Builder Name          Project Name        │
+│  [_______]        [___________]          [▼ Dropdown]       │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  RERA Builder Name                                          │
+│  []        │
+│                                                             │
+│  Builder Age               Builder Total Properties         │
+│  []             []                    │
+│                                                             │
+│  Builder Upcoming Properties   Builder Completed Properties │
+│  []                 []                │
+│                                                             │
+│  Builder Ongoing Projects                                   │
+│  [___________]                                              │
+│                                                             │
+│  Builder Origin City                                        │
+│  []        │
+│                                                             │
+│  Builder Operating Locations                                │
+│  []        │
+│                                                             │
+│  Previous Complaints on Builder                             │
+│  []        │
+│  []        │
+│  []        │
+│                                                             │
+│            [Cancel]              [Submit]                   │
+└─────────────────────────────────────────────────────────────┘
+
+4. Form submit button should:
+   - Save all fields to builder_data table
+   - Update unified_data table: set buildername = standard_builder_name WHERE projectname = selected_project_name
+   - Set updated_at = current timestamp
+   - Show success/error message
+   - Refresh the table
+
+5. Additional features:
+   - Form validation (required fields: RERA ID, Builder Name, Project Name)
+   - Loading states
+   - Cancel button to close form
+   - Delete functionality with confirmation
+
+## SUPABASE OPERATIONS NEEDED
+
+Fetch builders:
+SELECT * FROM builder_data ORDER BY created_at DESC
+
+Fetch project names for dropdown:
+SELECT DISTINCT projectname FROM unified_data WHERE projectname IS NOT NULL ORDER BY projectname
+
+Insert builder:
+INSERT INTO builder_data (rera_builder_name, standard_builder_name, builder_age, builder_total_properties, builder_upcoming_properties, builder_completed_properties, builder_ongoing_projects, builder_origin_city, builder_operating_locations, previous_complaints_on_builder) VALUES (form data) RETURNING *
+
+Update builder:
+UPDATE builder_data SET rera_builder_name = ?, standard_builder_name = ?, builder_age = ?, builder_total_properties = ?, builder_upcoming_properties = ?, builder_completed_properties = ?, builder_ongoing_projects = ?, builder_origin_city = ?, builder_operating_locations = ?, previous_complaints_on_builder = ?, updated_at = NOW() WHERE id = ?
+
+Update unified_data after form submit:
+UPDATE unified_data SET buildername = ? WHERE projectname = ?
+
+Delete builder:
+DELETE FROM builder_data WHERE id = ?
+
+## IMPORTANT NOTES:
+- The top row should have 3 fields displayed horizontally: RERA ID, Builder Name, Project Name
+- All other fields should be displayed below in a standard form layout
+- Use proper spacing and styling
+- Make it mobile-responsive
+- Add proper labels for all fields
+
+Please implement this feature with clean UI, proper error handling, and mobile-responsive design.

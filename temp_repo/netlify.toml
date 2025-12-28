@@ -1,0 +1,57 @@
+[build]
+  # Start inside RelaiWorld_App
+  base = "RelaiWorld_App"
+  # Build frontend, then install backend deps
+  # Using npm install with error handling
+  command = "cd Frontend && npm install --legacy-peer-deps && npm run build && cd ../Backend && npm install --legacy-peer-deps"
+  # Vite outputs here: RelaiWorld_App/Frontend/dist
+  publish = "Frontend/dist"
+  # Netlify Functions live here: RelaiWorld_App/Backend/netlify/functions
+  functions = "Backend/netlify/functions"
+
+
+
+
+
+[dev]
+  framework = "#custom"
+  command = "npm run dev --prefix RelaiWorld_App/Frontend"
+  targetPort = 5173
+  port = 8888
+  autoLaunch = false
+
+[functions]
+  # Increase timeout for serverless functions (max 26s for free tier, 60s for pro)
+  node_bundler = "esbuild"
+  
+[functions.server]
+  # Timeout in seconds (max 26 for free tier)
+  timeout = 26
+
+[functions.lead-registration]
+  # Timeout in seconds (max 26 for free tier, 60 provided for safety)
+  timeout = 26
+
+# Route lead-registration API to dedicated function (must come before general /api/* redirect)
+[[redirects]]
+  from = "/api/lead-registration/*"
+  to = "/.netlify/functions/lead-registration/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/lead-registration"
+  to = "/.netlify/functions/lead-registration"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/server/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

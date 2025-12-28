@@ -1,0 +1,38 @@
+Failed to load resource: the server responded with a status of 404 (Not Found)Understand this error
+AgentAuth.tsx:42 Login API Error: 404 
+handleSubmit @ AgentAuth.tsx:42Understand this error
+AgentAuth.tsx:28  POST https://e18143b9-0036-43ea-8e6e-6fbd5c3fc96a-00-1w1nwc6wia34x.sisko.replit.dev/api/user/login 404 (Not Found)
+handleSubmit @ AgentAuth.tsx:28
+callCallback2 @ chunk-R6S4VRB5.js?v=3a0dfb53:3674
+invokeGuardedCallbackDev @ chunk-R6S4VRB5.js?v=3a0dfb53:3699
+invokeGuardedCallback @ chunk-R6S4VRB5.js?v=3a0dfb53:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-R6S4VRB5.js?v=3a0dfb53:3736
+executeDispatch @ chunk-R6S4VRB5.js?v=3a0dfb53:7014
+processDispatchQueueItemsInOrder @ chunk-R6S4VRB5.js?v=3a0dfb53:7034
+processDispatchQueue @ chunk-R6S4VRB5.js?v=3a0dfb53:7043
+dispatchEventsForPlugins @ chunk-R6S4VRB5.js?v=3a0dfb53:7051
+(anonymous) @ chunk-R6S4VRB5.js?v=3a0dfb53:7174
+batchedUpdates$1 @ chunk-R6S4VRB5.js?v=3a0dfb53:18913
+batchedUpdates @ chunk-R6S4VRB5.js?v=3a0dfb53:3579
+dispatchEventForPluginEventSystem @ chunk-R6S4VRB5.js?v=3a0dfb53:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-R6S4VRB5.js?v=3a0dfb53:5478
+dispatchEvent @ chunk-R6S4VRB5.js?v=3a0dfb53:5472
+dispatchDiscreteEvent @ chunk-R6S4VRB5.js?v=3a0dfb53:5449Understand this error
+AgentAuth.tsx:42 Login API Error: 404 
+handleSubmit @ AgentAuth.tsx:42
+await in handleSubmit
+callCallback2 @ chunk-R6S4VRB5.js?v=3a0dfb53:3674
+invokeGuardedCallbackDev @ chunk-R6S4VRB5.js?v=3a0dfb53:3699
+invokeGuardedCallback @ chunk-R6S4VRB5.js?v=3a0dfb53:3733
+invokeGuardedCallbackAndCatchFirstError @ chunk-R6S4VRB5.js?v=3a0dfb53:3736
+executeDispatch @ chunk-R6S4VRB5.js?v=3a0dfb53:7014
+processDispatchQueueItemsInOrder @ chunk-R6S4VRB5.js?v=3a0dfb53:7034
+processDispatchQueue @ chunk-R6S4VRB5.js?v=3a0dfb53:7043
+dispatchEventsForPlugins @ chunk-R6S4VRB5.js?v=3a0dfb53:7051
+(anonymous) @ chunk-R6S4VRB5.js?v=3a0dfb53:7174
+batchedUpdates$1 @ chunk-R6S4VRB5.js?v=3a0dfb53:18913
+batchedUpdates @ chunk-R6S4VRB5.js?v=3a0dfb53:3579
+dispatchEventForPluginEventSystem @ chunk-R6S4VRB5.js?v=3a0dfb53:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-R6S4VRB5.js?v=3a0dfb53:5478
+dispatchEvent @ chunk-R6S4VRB5.js?v=3a0dfb53:5472
+dispatchDiscreteEvent @ chunk-R6S4VRB5.js?v=3a0dfb53:5449Understand this error

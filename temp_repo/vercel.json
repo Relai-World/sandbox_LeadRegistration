@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "buildCommand": "cd RelaiWorld_App/Frontend && npm install --legacy-peer-deps && npm run build",
+  "outputDirectory": "RelaiWorld_App/Frontend/dist",
+  "installCommand": "cd RelaiWorld_App/Backend && npm install --legacy-peer-deps --fetch-retries=5 --fetch-retry-factor=2 --fetch-retry-mintimeout=20000 && cd ../Frontend && npm install --legacy-peer-deps --fetch-retries=5 --fetch-retry-factor=2 --fetch-retry-mintimeout=20000",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/lead-registration/:path*",
+      "destination": "/api/lead-registration"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/[...]"
+    },
+    {
+      "source": "/((?!api|_next|favicon.ico|robots.txt).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 30
+    }
+  }
+}
+
