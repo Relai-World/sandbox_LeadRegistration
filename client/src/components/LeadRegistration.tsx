@@ -198,34 +198,25 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   const fetchZohoLeadNames = async (mobileNumbers: string[]) => {
     if (mobileNumbers.length === 0) return;
     try {
-      console.log('🔍 Fetching Zoho lead names for', mobileNumbers.length, 'mobile numbers');
       const response = await fetch(`${API_BASE_URL}/api/lead-registration/zoho-leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobile_numbers: mobileNumbers })
       });
 
-      console.log('📡 Zoho API response status:', response.status);
-
       if (response.ok) {
-        const result = await response.json();
-        console.log('✅ Zoho API result:', result);
-
-        if (result.success && result.data) {
-          const nameCount = Object.keys(result.data).length;
-          console.log(`📝 Found ${nameCount} Zoho lead names out of ${mobileNumbers.length} requested`);
-          console.log('Zoho names data:', result.data);
-          setZohoLeadNames(prev => ({ ...prev, ...result.data }));
-        } else {
-          console.warn('⚠️ Zoho API returned success but no data');
+        const text = await response.text();
+        try {
+          const result = JSON.parse(text);
+          if (result.success && result.data && Object.keys(result.data).length > 0) {
+            setZohoLeadNames(prev => ({ ...prev, ...result.data }));
+          }
+        } catch {
+          // Silently ignore JSON parse errors - Zoho integration is optional
         }
-      } else {
-        console.error('❌ Zoho API failed with status:', response.status);
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
       }
-    } catch (err) {
-      console.error('❌ Error fetching Zoho lead names:', err);
+    } catch {
+      // Silently ignore network errors - Zoho integration is optional
     }
   };
 
