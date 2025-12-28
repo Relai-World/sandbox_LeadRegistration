@@ -1121,12 +1121,13 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                     });
 
                     const zohoName = zohoLeadNames[lead.client_mobile] || '';
+                    // Create a more meaningful display name
+                    // Format mobile number: show last 10 digits for cleaner display
                     const formattedMobile = lead.client_mobile.slice(-10);
-                    // Use client_name if available, otherwise show mobile number
-                    // Skip requirement_name as it's just a label like "Requirement 1"
                     const displayName = zohoName ||
                       lead.client_name ||
-                      formattedMobile;
+                      lead.requirement_name ||
+                      `Lead ${formattedMobile}`;
 
                     if (shortlistedList.length === 0) {
                       return (
