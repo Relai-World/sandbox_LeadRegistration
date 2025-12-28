@@ -1792,36 +1792,43 @@ export async function registerRoutes(
         enrichedProjects.push(...projects);
       }
 
-      // Create PDF document
+      // Helper function to fetch image from Supabase Storage
+      const fetchImageFromStorage = async (bucket: string, path: string): Promise<Buffer | null> => {
+        if (!supabase) return null;
+        try {
+          const { data, error } = await supabase.storage.from(bucket).download(path);
+          if (error || !data) {
+            console.log('PDF: Error fetching image from storage:', path, error?.message);
+            return null;
+          }
+          const arrayBuffer = await data.arrayBuffer();
+          return Buffer.from(arrayBuffer);
+        } catch (err: any) {
+          console.log('PDF: Failed to fetch image:', path, err.message);
+          return null;
+        }
+      };
+
+      // Create PDF document - Landscape for comparison table layout
       const doc = new PDFDocument({ 
-        size: 'A4',
-        margins: { top: 50, bottom: 50, left: 50, right: 50 },
+        size: [842, 595], // A4 Landscape
+        margins: { top: 30, bottom: 30, left: 30, right: 30 },
         bufferPages: true
       });
 
       // Set response headers for PDF
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=Lead_${(leadName || 'Report').replace(/\s/g, '_')}_${Date.now()}.pdf`);
+      res.setHeader('Content-Disposition', `attachment; filename=Lead_${(leadName || 'Report').replace(/\s/g, '_')}_${leadMobile || ''}_${Date.now()}.pdf`);
 
       // Pipe PDF to response
       doc.pipe(res);
 
-      // Helper function to format currency
-      const formatCurrency = (value: any): string => {
-        if (!value || value === 'N/A' || value === '---') return 'N/A';
-        const num = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
-        if (isNaN(num)) return 'N/A';
-        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
-      };
-
-      // Helper function to safely get value - check multiple case variations
+      // Helper function to safely get value
       const getValue = (obj: any, ...keys: string[]): string => {
         for (const key of keys) {
-          // Try exact key first
           if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '' && obj[key] !== '---') {
             return String(obj[key]);
           }
-          // Try lowercase
           const lowerKey = key.toLowerCase();
           if (obj[lowerKey] !== undefined && obj[lowerKey] !== null && obj[lowerKey] !== '' && obj[lowerKey] !== '---') {
             return String(obj[lowerKey]);
@@ -1830,184 +1837,270 @@ export async function registerRoutes(
         return 'N/A';
       };
 
-      // Cover page
-      doc.fontSize(28).font('Helvetica-Bold').fillColor('#1a365d')
-         .text('Property Comparison Report', { align: 'center' });
-      doc.moveDown(0.5);
+      // Format price for display
+      const formatPrice = (value: any): string => {
+        if (!value || value === 'N/A' || value === '---') return 'N/A';
+        const num = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+        if (isNaN(num)) return String(value);
+        if (num >= 10000000) return `${(num / 10000000).toFixed(1)}Cr`;
+        if (num >= 100000) return `${(num / 100000).toFixed(1)}Lac`;
+        return num.toLocaleString('en-IN');
+      };
+
+      // ==================== SLIDE 1: Cover Page ====================
+      // Try to fetch cover image from Supabase Storage
+      const coverImage = await fetchImageFromStorage('property_images', 'images/slide1_cover.png');
       
-      doc.fontSize(14).font('Helvetica').fillColor('#4a5568')
-         .text(`Prepared for: ${leadName || 'Valued Client'}`, { align: 'center' });
-      
-      if (leadMobile) {
-        doc.fontSize(12).text(`Contact: ${leadMobile}`, { align: 'center' });
+      if (coverImage) {
+        doc.image(coverImage, 0, 0, { width: 842, height: 595 });
+      } else {
+        // Fallback: Create styled cover page
+        // Blue background header area
+        doc.rect(0, 0, 842, 595).fill('#ffffff');
+        doc.rect(30, 80, 782, 180).fillAndStroke('#3B5998', '#3B5998');
+        
+        // Logo area (top right)
+        doc.fontSize(28).font('Helvetica-Bold').fillColor('#3B5998')
+           .text('relai.', 720, 30);
+        doc.fontSize(10).font('Helvetica').fillColor('#666666')
+           .text('for right home', 720, 55);
+        
+        // Main title
+        doc.fontSize(32).font('Helvetica-Bold').fillColor('#00FF00')
+           .text('RELAI', 260, 150);
+        doc.fontSize(32).font('Helvetica-Bold').fillColor('#ffffff')
+           .text(' RIGHT HOME REPORT', 340, 150);
+        
+        // Website
+        doc.fontSize(14).font('Helvetica').fillColor('#ffffff')
+           .text('www.relai.world', 260, 200);
+        
+        // Footer logos placeholder
+        doc.fontSize(10).font('Helvetica').fillColor('#666666')
+           .text('TS RERA', 50, 530);
+        
+        doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998')
+           .text('r.', 770, 530);
       }
-      
-      doc.moveDown(0.5);
-      doc.fontSize(12).text(`Date: ${new Date().toLocaleDateString('en-IN', { 
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-      })}`, { align: 'center' });
-      
-      doc.moveDown(1);
-      doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
-         .text(`${enrichedProjects.length} Properties Compared`, { align: 'center' });
 
-      // Property details pages
-      enrichedProjects.forEach((property, index) => {
-        doc.addPage();
+      // ==================== SLIDE 2: Property Selection ====================
+      doc.addPage();
+      
+      const selectionImage = await fetchImageFromStorage('property_images', 'images/slide2_selection.png');
+      
+      if (selectionImage) {
+        doc.image(selectionImage, 0, 0, { width: 842, height: 595 });
+      } else {
+        // Fallback: Create property selection slide
+        doc.rect(0, 0, 842, 595).fill('#f5f5f5');
+        
+        // Left property card (grayed)
+        doc.roundedRect(100, 150, 180, 250, 10).fillAndStroke('#e0e0e0', '#cccccc');
+        doc.fontSize(12).font('Helvetica').fillColor('#999999')
+           .text('Property 1', 150, 320);
+        
+        // Center property card (highlighted with blue border)
+        doc.roundedRect(311, 120, 220, 300, 10).fillAndStroke('#ffffff', '#3B5998');
+        doc.roundedRect(371, 380, 100, 40, 20).fill('#3B5998');
+        doc.fontSize(18).font('Helvetica-Bold').fillColor('#ffffff')
+           .text('Selected', 388, 390);
+        
+        // Right property card (grayed)
+        doc.roundedRect(562, 150, 180, 250, 10).fillAndStroke('#e0e0e0', '#cccccc');
+        doc.fontSize(12).font('Helvetica').fillColor('#999999')
+           .text('Property 3', 612, 320);
+        
+        // Website footer
+        doc.fontSize(12).font('Helvetica').fillColor('#666666')
+           .text('www.relai.world', 50, 550);
+        
+        doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998')
+           .text('r.', 780, 550);
+      }
 
-        // Header with project name
+      // ==================== SLIDE 3+: Dynamic Property Comparison ====================
+      doc.addPage();
+      
+      // Page dimensions for landscape A4
+      const pageWidth = 842;
+      const pageHeight = 595;
+      const margin = 30;
+      const usableWidth = pageWidth - (margin * 2);
+      
+      // Header
+      doc.rect(0, 0, pageWidth, 60).fill('#3B5998');
+      doc.fontSize(18).font('Helvetica-Bold').fillColor('#ffffff')
+         .text('COMPARE', margin + 10, 20);
+      doc.fontSize(18).font('Helvetica').fillColor('#ffffff')
+         .text('PROPERTY', margin + 110, 20);
+      doc.fontSize(10).font('Helvetica').fillColor('#ffffff')
+         .text('www.relai.world', pageWidth - 140, 25);
+      
+      // Calculate column widths
+      const labelColWidth = 120;
+      const numProperties = Math.min(enrichedProjects.length, 3); // Max 3 properties per page
+      const propertyColWidth = (usableWidth - labelColWidth) / numProperties;
+      
+      // Property header cards (blue background with property info)
+      let xPos = margin + labelColWidth;
+      const headerY = 70;
+      const headerHeight = 80;
+      
+      // Draw property header cards
+      enrichedProjects.slice(0, 3).forEach((property, idx) => {
+        // Blue card background
+        doc.rect(xPos + 5, headerY, propertyColWidth - 10, headerHeight)
+           .fillAndStroke('#3B5998', '#3B5998');
+        
+        // Property name
         const projectName = getValue(property, 'projectname', 'projectName');
         const builderName = getValue(property, 'buildername', 'builderName');
         
-        doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a365d')
-           .text(projectName, 50, 50);
-        doc.fontSize(12).font('Helvetica').fillColor('#718096')
-           .text(`by ${builderName}`, 50, 75);
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#ffffff')
+           .text(projectName.substring(0, 20), xPos + 15, headerY + 10, { width: propertyColWidth - 30 });
+        doc.fontSize(8).font('Helvetica').fillColor('#e0e0e0')
+           .text(`By ${builderName.substring(0, 25)}`, xPos + 15, headerY + 50, { width: propertyColWidth - 30 });
         
-        doc.moveDown(1);
-        
-        let yPos = 100;
-        const leftCol = 50;
-        const rightCol = 320;
-        const lineHeight = 18;
-
-        // Section: Basic Information
-        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
-           .text('Basic Information', leftCol, yPos);
-        yPos += 25;
-        
-        doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
-        
-        const basicInfo = [
-          ['RERA Number', getValue(property, 'rera_number', 'RERA_Number')],
-          ['Location', getValue(property, 'areaname', 'projectlocation')],
-          ['City', getValue(property, 'city')],
-          ['Project Type', getValue(property, 'project_type')],
-          ['Community Type', getValue(property, 'communitytype')],
-          ['Construction Status', getValue(property, 'construction_status')],
-        ];
-
-        basicInfo.forEach(([label, value], i) => {
-          const col = i % 2 === 0 ? leftCol : rightCol;
-          if (i % 2 === 0 && i > 0) yPos += lineHeight;
-          
-          doc.font('Helvetica-Bold').text(`${label}:`, col, yPos, { continued: true });
-          doc.font('Helvetica').text(` ${value}`);
-        });
-        
-        yPos += lineHeight + 20;
-
-        // Section: Project Specifications
-        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
-           .text('Project Specifications', leftCol, yPos);
-        yPos += 25;
-        
-        doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
-        
-        const specs = [
-          ['Total Land Area', getValue(property, 'total_land_area') + ' Acres'],
-          ['Number of Towers', getValue(property, 'number_of_towers')],
-          ['Floors', getValue(property, 'number_of_floors')],
-          ['Flats Per Floor', getValue(property, 'number_of_flats_per_floor')],
-          ['Total Units', getValue(property, 'total_number_of_units')],
-          ['Open Space', getValue(property, 'open_space')],
-        ];
-
-        specs.forEach(([label, value], i) => {
-          const col = i % 2 === 0 ? leftCol : rightCol;
-          if (i % 2 === 0 && i > 0) yPos += lineHeight;
-          
-          doc.font('Helvetica-Bold').text(`${label}:`, col, yPos, { continued: true });
-          doc.font('Helvetica').text(` ${value}`);
-        });
-        
-        yPos += lineHeight + 20;
-
-        // Section: Pricing
-        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
-           .text('Pricing Details', leftCol, yPos);
-        yPos += 25;
-        
-        doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
-        
-        const pricing = [
-          ['Price Per Sqft', formatCurrency(getValue(property, 'price_per_sft'))],
-          ['Base Project Price', formatCurrency(getValue(property, 'baseprojectprice'))],
-          ['Price Range', getValue(property, 'priceRange', 'price_range')],
-          ['Size Range', getValue(property, 'sqfeet', 'sizeRange') + ' Sqft'],
-        ];
-
-        pricing.forEach(([label, value], i) => {
-          const col = i % 2 === 0 ? leftCol : rightCol;
-          if (i % 2 === 0 && i > 0) yPos += lineHeight;
-          
-          doc.font('Helvetica-Bold').text(`${label}:`, col, yPos, { continued: true });
-          doc.font('Helvetica').text(` ${value}`);
-        });
-        
-        yPos += lineHeight + 20;
-
-        // Section: Amenities & Features
-        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
-           .text('Amenities & Features', leftCol, yPos);
-        yPos += 25;
-        
-        doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
-        
-        const amenities = [
-          ['Passenger Lifts', getValue(property, 'no_of_passenger_lift')],
-          ['Service Lifts', getValue(property, 'no_of_service_lift')],
-          ['Visitor Parking', getValue(property, 'visitor_parking')],
-          ['Power Backup', getValue(property, 'powerbackup')],
-        ];
-
-        amenities.forEach(([label, value], i) => {
-          const col = i % 2 === 0 ? leftCol : rightCol;
-          if (i % 2 === 0 && i > 0) yPos += lineHeight;
-          
-          doc.font('Helvetica-Bold').text(`${label}:`, col, yPos, { continued: true });
-          doc.font('Helvetica').text(` ${value}`);
-        });
-        
-        yPos += lineHeight + 20;
-
-        // Section: Timeline
-        doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
-           .text('Timeline', leftCol, yPos);
-        yPos += 25;
-        
-        doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
-        
-        const timeline = [
-          ['Launch Date', getValue(property, 'project_launch_date')],
-          ['Possession Date', getValue(property, 'possession_date')],
-        ];
-
-        timeline.forEach(([label, value], i) => {
-          const col = i % 2 === 0 ? leftCol : rightCol;
-          if (i % 2 === 0 && i > 0) yPos += lineHeight;
-          
-          doc.font('Helvetica-Bold').text(`${label}:`, col, yPos, { continued: true });
-          doc.font('Helvetica').text(` ${value}`);
-        });
-        
-        yPos += lineHeight + 20;
-
-        // External Amenities if available
-        const externalAmenities = getValue(property, 'external_amenities');
-        if (externalAmenities && externalAmenities !== 'N/A') {
-          doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
-             .text('External Amenities', leftCol, yPos);
-          yPos += 20;
-          
-          doc.fontSize(9).font('Helvetica').fillColor('#4a5568')
-             .text(externalAmenities, leftCol, yPos, { width: 500, lineGap: 3 });
-        }
-
-        // Footer with page number
-        doc.fontSize(8).font('Helvetica').fillColor('#a0aec0')
-           .text(`Property ${index + 1} of ${enrichedProjects.length}`, 50, 780, { align: 'center' });
+        xPos += propertyColWidth;
       });
+      
+      // Property comparison table
+      const tableStartY = headerY + headerHeight + 20;
+      const rowHeight = 28;
+      
+      const comparisonFields = [
+        { label: 'GRID Score', keys: ['grid_score', 'GRID_Score'] },
+        { label: 'Price Range', keys: ['priceRange', 'price_range'], format: 'price' },
+        { label: 'Price/sq ft', keys: ['price_per_sft', 'pricePerSft'], format: 'currency' },
+        { label: 'Size Range', keys: ['sqfeet', 'sizeRange', 'size_range'], suffix: ' sq.ft' },
+        { label: 'Configurations', keys: ['configurations', 'config'] },
+        { label: 'Property Type', keys: ['project_type', 'Project_Type'] },
+        { label: 'Location', keys: ['areaname', 'projectlocation', 'projectLocation'] },
+        { label: 'RERA Status', keys: ['rera_status'], default: 'Approved' },
+        { label: 'RERA Number', keys: ['rera_number', 'RERA_Number'] },
+        { label: 'Possession', keys: ['possession_date', 'possessionDate'] },
+      ];
+      
+      comparisonFields.forEach((field, rowIdx) => {
+        const rowY = tableStartY + (rowIdx * rowHeight);
+        const isEvenRow = rowIdx % 2 === 0;
+        
+        // Row background
+        doc.rect(margin, rowY, usableWidth, rowHeight)
+           .fill(isEvenRow ? '#f8f9fa' : '#ffffff');
+        
+        // Label column
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333')
+           .text(field.label, margin + 10, rowY + 8);
+        
+        // Property value columns
+        xPos = margin + labelColWidth;
+        enrichedProjects.slice(0, 3).forEach((property) => {
+          let value = field.default || getValue(property, ...field.keys);
+          
+          // Format value based on field type
+          if (field.format === 'price') {
+            value = formatPrice(value);
+          } else if (field.format === 'currency') {
+            const num = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+            if (!isNaN(num)) value = `${num.toLocaleString('en-IN')}/sq.ft`;
+          }
+          
+          if (field.suffix && value !== 'N/A') {
+            value = value + field.suffix;
+          }
+          
+          // Handle configurations array
+          if (field.keys.includes('configurations') && Array.isArray(property.configurations)) {
+            const configs = property.configurations.map((c: any) => c.type || c).join(', ');
+            value = configs || 'N/A';
+          }
+          
+          // Draw card background for each cell
+          doc.rect(xPos + 5, rowY + 2, propertyColWidth - 10, rowHeight - 4)
+             .fillAndStroke('#e8f0fe', '#d0dff5');
+          
+          doc.fontSize(9).font('Helvetica').fillColor('#1a1a1a')
+             .text(value.substring(0, 25), xPos + 15, rowY + 8, { width: propertyColWidth - 30 });
+          
+          xPos += propertyColWidth;
+        });
+      });
+      
+      // Footer
+      doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998')
+         .text('r.', pageWidth - 50, pageHeight - 40);
+      
+      // If more than 3 properties, add additional comparison pages
+      if (enrichedProjects.length > 3) {
+        for (let pageStart = 3; pageStart < enrichedProjects.length; pageStart += 3) {
+          doc.addPage();
+          
+          const pageProjects = enrichedProjects.slice(pageStart, pageStart + 3);
+          const numPropsOnPage = pageProjects.length;
+          const propColWidth = (usableWidth - labelColWidth) / numPropsOnPage;
+          
+          // Header
+          doc.rect(0, 0, pageWidth, 60).fill('#3B5998');
+          doc.fontSize(18).font('Helvetica-Bold').fillColor('#ffffff')
+             .text('COMPARE', margin + 10, 20);
+          doc.fontSize(18).font('Helvetica').fillColor('#ffffff')
+             .text('PROPERTY (Continued)', margin + 110, 20);
+          
+          // Property headers
+          xPos = margin + labelColWidth;
+          pageProjects.forEach((property) => {
+            doc.rect(xPos + 5, headerY, propColWidth - 10, headerHeight)
+               .fillAndStroke('#3B5998', '#3B5998');
+            
+            const projectName = getValue(property, 'projectname', 'projectName');
+            const builderName = getValue(property, 'buildername', 'builderName');
+            
+            doc.fontSize(11).font('Helvetica-Bold').fillColor('#ffffff')
+               .text(projectName.substring(0, 20), xPos + 15, headerY + 10, { width: propColWidth - 30 });
+            doc.fontSize(8).font('Helvetica').fillColor('#e0e0e0')
+               .text(`By ${builderName.substring(0, 25)}`, xPos + 15, headerY + 50, { width: propColWidth - 30 });
+            
+            xPos += propColWidth;
+          });
+          
+          // Table rows
+          comparisonFields.forEach((field, rowIdx) => {
+            const rowY = tableStartY + (rowIdx * rowHeight);
+            const isEvenRow = rowIdx % 2 === 0;
+            
+            doc.rect(margin, rowY, usableWidth, rowHeight)
+               .fill(isEvenRow ? '#f8f9fa' : '#ffffff');
+            
+            doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333')
+               .text(field.label, margin + 10, rowY + 8);
+            
+            xPos = margin + labelColWidth;
+            pageProjects.forEach((property) => {
+              let value = field.default || getValue(property, ...field.keys);
+              
+              if (field.format === 'price') value = formatPrice(value);
+              if (field.suffix && value !== 'N/A') value = value + field.suffix;
+              
+              if (field.keys.includes('configurations') && Array.isArray(property.configurations)) {
+                value = property.configurations.map((c: any) => c.type || c).join(', ') || 'N/A';
+              }
+              
+              doc.rect(xPos + 5, rowY + 2, propColWidth - 10, rowHeight - 4)
+                 .fillAndStroke('#e8f0fe', '#d0dff5');
+              
+              doc.fontSize(9).font('Helvetica').fillColor('#1a1a1a')
+                 .text(value.substring(0, 25), xPos + 15, rowY + 8, { width: propColWidth - 30 });
+              
+              xPos += propColWidth;
+            });
+          });
+          
+          // Footer
+          doc.fontSize(24).font('Helvetica-Bold').fillColor('#3B5998')
+             .text('r.', pageWidth - 50, pageHeight - 40);
+        }
+      }
 
       // Finalize PDF
       doc.end();
