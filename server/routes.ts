@@ -1851,22 +1851,35 @@ export async function registerRoutes(
       }
 
       // Search for the token in client_Requirements.share_links array
+      // Fetch all records that might have share_links
       const { data: records, error: fetchError } = await supabase
         .from('client_Requirements')
-        .select('*')
-        .not('share_links', 'is', null);
+        .select('id, client_mobile, share_links, shortlisted_properties');
 
       if (fetchError) {
         console.error('Error fetching client_Requirements:', fetchError);
         return res.status(500).json({ success: false, message: 'Database error' });
       }
 
+      console.log('Searching for token:', token);
+      console.log('Total records fetched:', records?.length || 0);
+
       // Find the share link with matching token
       let foundShareLink: any = null;
       let foundRecord: any = null;
 
       for (const record of records || []) {
-        const shareLinks = record.share_links;
+        let shareLinks = record.share_links;
+        
+        // Handle case where share_links might be a string (JSON)
+        if (typeof shareLinks === 'string') {
+          try {
+            shareLinks = JSON.parse(shareLinks);
+          } catch (e) {
+            continue;
+          }
+        }
+        
         // Ensure share_links is an array before searching
         if (!Array.isArray(shareLinks)) continue;
         
@@ -1874,6 +1887,7 @@ export async function registerRoutes(
         if (matchingLink) {
           foundShareLink = matchingLink;
           foundRecord = record;
+          console.log('Found matching record id:', record.id);
           break;
         }
       }
