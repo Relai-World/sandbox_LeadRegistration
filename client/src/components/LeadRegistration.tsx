@@ -26,7 +26,9 @@ import {
   Mail,
   MessageCircle,
   User,
-  Home
+  Home,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 
 interface ShortlistedPropertyData {
@@ -150,7 +152,20 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   const [leadModalOpen, setLeadModalOpen] = useState(false);
   const [leadName, setLeadName] = useState('');
   const [leadMobile, setLeadMobile] = useState('');
+  const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
   const { toast } = useToast();
+
+  const toggleLeadExpansion = (leadId: number) => {
+    setExpandedLeads(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(leadId)) {
+        newSet.delete(leadId);
+      } else {
+        newSet.add(leadId);
+      }
+      return newSet;
+    });
+  };
 
   // Server-side pagination
   const [totalLeads, setTotalLeads] = useState(0);
@@ -1084,24 +1099,21 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
           <CardContent className="p-0 flex-1 overflow-hidden">
             <div className="overflow-auto h-full">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b sticky top-0">
+                <thead className="bg-gray-50 border-b sticky top-0 z-10">
                   <tr>
+                    <th className="w-8 px-2"></th>
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Lead Name</th>
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Mobile</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Properties</th>
                     <th className="text-center px-2 py-2 w-10">
                       <input
                         type="checkbox"
                         checked={selectedPropertyKeys.size === getAllPropertyKeys().length && getAllPropertyKeys().length > 0}
                         onChange={toggleSelectAll}
                         className="w-4 h-4 rounded border-gray-300"
+                        data-testid="checkbox-select-all"
                       />
                     </th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Project Name</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Builder Name</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700">RERA Number</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700">POC Name</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700">POC Contact</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700">POC Role</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1120,71 +1132,134 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                       return true;
                     });
 
-                    // Lead Name is empty until Zoho CRM integration is connected
-                    const displayName = '';
-
-                    // Skip leads with no shortlisted properties (backend should filter, but double-check)
                     if (shortlistedList.length === 0) {
                       return null;
                     }
 
-                    return shortlistedList.map((property, propIndex) => {
-                      const reraNumber = property.property?.rera_number || property.rera_number;
-                      const projectName = property.property?.projectname || property.projectname || property.propertyName;
-                      const builderName = property.property?.buildername || property.buildername;
-                      const pocInfo = reraNumber ? pocDataMap[reraNumber] : null;
-                      const propertyKey = `${lead.id}-${reraNumber || projectName || propIndex}`;
+                    const isExpanded = expandedLeads.has(lead.id);
 
-                      return (
-                        <tr key={`${lead.id}-${propIndex}`} className="hover:bg-gray-50">
-                          {propIndex === 0 ? (
-                            <>
-                              <td className="px-3 py-2 align-top text-gray-900" rowSpan={shortlistedList.length}>
-                                {displayName}
-                              </td>
-                              <td className="px-3 py-2 align-top text-gray-600" rowSpan={shortlistedList.length}>
-                                {lead.client_mobile}
-                              </td>
-                            </>
-                          ) : null}
-                          <td className="text-center px-2 py-2">
-                            <div className="flex items-center justify-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={selectedPropertyKeys.has(propertyKey)}
-                                onChange={() => togglePropertySelection(propertyKey, lead.id)}
-                                disabled={savingPropertyKeys.has(propertyKey)}
-                                className="w-4 h-4 rounded border-gray-300"
-                              />
-                              {savingPropertyKeys.has(propertyKey) && (
-                                <span className="text-xs text-blue-600">Saving...</span>
-                              )}
-                              {savedPropertyKeys.has(propertyKey) && !savingPropertyKeys.has(propertyKey) && (
-                                <span className="text-xs text-green-600 font-medium">Saved</span>
-                              )}
-                            </div>
+                    return (
+                      <React.Fragment key={lead.id}>
+                        <tr 
+                          className="hover:bg-gray-50 cursor-pointer"
+                          onClick={() => toggleLeadExpansion(lead.id)}
+                          data-testid={`row-lead-${lead.id}`}
+                        >
+                          <td className="px-2 py-3 text-gray-500">
+                            {isExpanded ? (
+                              <ChevronDown className="w-4 h-4" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" />
+                            )}
                           </td>
-                          <td className="px-3 py-2 text-gray-900">
-                            {projectName || 'N/A'}
+                          <td className="px-3 py-3 text-gray-400 italic text-sm">
+                            {/* Empty until Zoho connected */}
                           </td>
-                          <td className="px-3 py-2 text-gray-900">
-                            {builderName || 'N/A'}
+                          <td className="px-3 py-3 text-gray-900 font-medium">
+                            {lead.client_mobile}
                           </td>
-                          <td className="px-3 py-2 font-mono text-gray-700">
-                            {reraNumber || 'N/A'}
+                          <td className="px-3 py-3 text-gray-600">
+                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                              {shortlistedList.length} {shortlistedList.length === 1 ? 'property' : 'properties'}
+                            </span>
                           </td>
-                          <td className="px-3 py-2 text-gray-900">
-                            {pocInfo?.poc_name || 'N/A'}
-                          </td>
-                          <td className="px-3 py-2 text-gray-900">
-                            {pocInfo?.poc_contact || 'N/A'}
-                          </td>
-                          <td className="px-3 py-2 text-gray-900">
-                            {pocInfo?.poc_role || 'N/A'}
+                          <td className="text-center px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={shortlistedList.every((_, propIndex) => {
+                                const property = shortlistedList[propIndex];
+                                const reraNumber = property.property?.rera_number || property.rera_number;
+                                const projectName = property.property?.projectname || property.projectname || property.propertyName;
+                                const propertyKey = `${lead.id}-${reraNumber || projectName || propIndex}`;
+                                return selectedPropertyKeys.has(propertyKey);
+                              })}
+                              onChange={(e) => {
+                                shortlistedList.forEach((property, propIndex) => {
+                                  const reraNumber = property.property?.rera_number || property.rera_number;
+                                  const projectName = property.property?.projectname || property.projectname || property.propertyName;
+                                  const propertyKey = `${lead.id}-${reraNumber || projectName || propIndex}`;
+                                  if (e.target.checked && !selectedPropertyKeys.has(propertyKey)) {
+                                    togglePropertySelection(propertyKey, lead.id);
+                                  } else if (!e.target.checked && selectedPropertyKeys.has(propertyKey)) {
+                                    togglePropertySelection(propertyKey, lead.id);
+                                  }
+                                });
+                              }}
+                              className="w-4 h-4 rounded border-gray-300"
+                              data-testid={`checkbox-lead-${lead.id}`}
+                            />
                           </td>
                         </tr>
-                      );
-                    });
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={5} className="p-0">
+                              <div className="bg-gray-50 border-t border-b">
+                                <table className="w-full text-sm">
+                                  <thead className="bg-gray-100">
+                                    <tr>
+                                      <th className="w-8 px-2"></th>
+                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">Project Name</th>
+                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">Builder Name</th>
+                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">RERA Number</th>
+                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">POC Name</th>
+                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">POC Contact</th>
+                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">POC Role</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {shortlistedList.map((property, propIndex) => {
+                                      const reraNumber = property.property?.rera_number || property.rera_number;
+                                      const projectName = property.property?.projectname || property.projectname || property.propertyName;
+                                      const builderName = property.property?.buildername || property.buildername;
+                                      const pocInfo = reraNumber ? pocDataMap[reraNumber] : null;
+                                      const propertyKey = `${lead.id}-${reraNumber || projectName || propIndex}`;
+
+                                      return (
+                                        <tr key={`${lead.id}-${propIndex}`} className="hover:bg-gray-100 border-t border-gray-200">
+                                          <td className="text-center px-2 py-2">
+                                            <div className="flex items-center justify-center gap-1">
+                                              <input
+                                                type="checkbox"
+                                                checked={selectedPropertyKeys.has(propertyKey)}
+                                                onChange={() => togglePropertySelection(propertyKey, lead.id)}
+                                                disabled={savingPropertyKeys.has(propertyKey)}
+                                                className="w-4 h-4 rounded border-gray-300"
+                                                data-testid={`checkbox-property-${propertyKey}`}
+                                              />
+                                              {savingPropertyKeys.has(propertyKey) && (
+                                                <span className="text-xs text-blue-600">...</span>
+                                              )}
+                                            </div>
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-900 font-medium">
+                                            {projectName || 'N/A'}
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-700">
+                                            {builderName || 'N/A'}
+                                          </td>
+                                          <td className="px-3 py-2 font-mono text-gray-600 text-xs">
+                                            {reraNumber || 'N/A'}
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-700">
+                                            {pocInfo?.poc_name || 'N/A'}
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-700">
+                                            {pocInfo?.poc_contact || 'N/A'}
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-700">
+                                            {pocInfo?.poc_role || 'N/A'}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
                   })}
                 </tbody>
               </table>
