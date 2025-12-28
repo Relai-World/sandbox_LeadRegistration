@@ -3,29 +3,10 @@ import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Building2, MapPin, Phone, User, Calendar, Ruler, IndianRupee, Home, CheckCircle, Loader2 } from "lucide-react";
+import { Building2, MapPin, Phone, User, Calendar, Ruler, IndianRupee, Home, CheckCircle, Loader2, Star, Car, Trees, Building, Waves, Shield } from "lucide-react";
+import heroImage from "@assets/relai_hero.png";
 
 interface PropertyData {
-  projectname?: string;
-  buildername?: string;
-  areaname?: string;
-  city?: string;
-  rera_number?: string;
-  project_type?: string;
-  price_range?: string;
-  price_per_sft?: string;
-  size_range?: string;
-  sqfeet?: string;
-  configurations?: any;
-  possession_date?: string;
-  construction_status?: string;
-  total_land_area?: string;
-  number_of_towers?: string;
-  total_units?: string;
-  available_units?: string;
-  grid_score?: string;
-  external_amenities?: string;
-  bank_approvals?: string;
   [key: string]: any;
 }
 
@@ -66,29 +47,46 @@ const SharePage = () => {
     }
   }, [token]);
 
-  const getValue = (obj: any, ...keys: string[]): string => {
-    for (const key of keys) {
-      if (obj[key] !== undefined && obj[key] !== null && obj[key] !== "" && obj[key] !== "---") {
-        return String(obj[key]);
+  const isValidValue = (value: any): boolean => {
+    if (value === undefined || value === null) return false;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === '' || normalized === 'n/a' || normalized === 'na' || 
+          normalized === '-' || normalized === '--' || normalized === '---' ||
+          normalized === 'null' || normalized === 'undefined') {
+        return false;
       }
     }
-    return "N/A";
+    return true;
   };
 
-  const formatPrice = (value: any): string => {
-    if (!value || value === "N/A" || value === "---") return "N/A";
+  const getValue = (obj: any, ...keys: string[]): string | null => {
+    for (const key of keys) {
+      const value = obj[key];
+      if (isValidValue(value)) {
+        return String(value);
+      }
+    }
+    return null;
+  };
+
+  const formatPrice = (value: any): string | null => {
+    if (!isValidValue(value)) return null;
     const num = parseFloat(String(value).replace(/[^0-9.-]/g, ""));
     if (isNaN(num)) return String(value);
-    if (num >= 10000000) return `${(num / 10000000).toFixed(2)} Cr`;
-    if (num >= 100000) return `${(num / 100000).toFixed(2)} Lac`;
-    return num.toLocaleString("en-IN");
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(2)} Lac`;
+    return `₹${num.toLocaleString("en-IN")}`;
   };
 
-  const getConfigurations = (property: PropertyData): string => {
-    if (Array.isArray(property.configurations)) {
-      return property.configurations.map((c: any) => c.type || c).join(", ") || "N/A";
-    }
-    return getValue(property, "configurations", "config") || "N/A";
+  const formatLabel = (key: string): string => {
+    return key
+      .replace(/_/g, ' ')
+      .replace(/([A-Z])/g, ' $1')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+      .trim();
   };
 
   if (loading) {
@@ -115,36 +113,131 @@ const SharePage = () => {
     );
   }
 
-  const comparisonMetrics = [
-    { label: "Price Range", key: "price_range", format: "price" },
-    { label: "Price/Sq Ft", key: "price_per_sft" },
-    { label: "Size Range", key: "size_range" },
-    { label: "GRID Score", key: "grid_score" },
-    { label: "Location", key: "areaname" },
-    { label: "Possession", key: "possession_date" },
-    { label: "Status", key: "construction_status" },
-    { label: "Towers", key: "number_of_towers" },
-    { label: "Total Units", key: "total_units" },
-    { label: "Available", key: "available_units" },
+  const basicInfoKeys = [
+    'projectname', 'buildername', 'areaname', 'city', 'state', 'rera_number', 
+    'project_type', 'communitytype', 'project_status', 'isavailable'
   ];
+
+  const pricingKeys = [
+    'baseprojectprice', 'price_per_sft', 'floor_rise_charges', 'floor_rise_amount_per_floor',
+    'floor_rise_applicable_above_floor_no', 'facing_charges', 'preferential_location_charges',
+    'preferential_location_charges_conditions', 'amount_for_extra_car_parking'
+  ];
+
+  const configurationKeys = [
+    'bhk', 'sqfeet', 'sqyard', 'facing', 'carpet_area_percentage', 
+    'floor_to_ceiling_height', 'main_door_height', 'uds', 'fsi'
+  ];
+
+  const projectDetailsKeys = [
+    'total_land_area', 'number_of_towers', 'number_of_floors', 
+    'number_of_flats_per_floor', 'total_number_of_units', 'open_space',
+    'possession_date', 'project_launch_date', 'construction_status'
+  ];
+
+  const amenitiesKeys = [
+    'powerbackup', 'no_of_passenger_lift', 'no_of_service_lift', 
+    'visitor_parking', 'ground_vehicle_movement', 'no_of_car_parkings',
+    'external_amenities', 'specification'
+  ];
+
+  const scoreKeys = [
+    'GRID_Score', 'connectivity_score', 'amenities_score',
+    'google_place_rating', 'google_place_user_ratings_total'
+  ];
+
+  const nearbyKeys = [
+    'hospitals_count', 'shopping_malls_count', 'schools_count', 
+    'restaurants_count', 'restaurants_above_4_stars_count', 'supermarkets_count',
+    'it_offices_count', 'metro_stations_count', 'railway_stations_count'
+  ];
+
+  const getComparisonRows = (keys: string[]): { key: string; values: (string | null)[] }[] => {
+    const rows: { key: string; values: (string | null)[] }[] = [];
+    
+    for (const key of keys) {
+      const values = data.properties.map(prop => {
+        const val = prop[key];
+        if (key.toLowerCase().includes('price') || key === 'baseprojectprice') {
+          return formatPrice(val);
+        }
+        return isValidValue(val) ? String(val) : null;
+      });
+      
+      if (values.some(v => v !== null)) {
+        rows.push({ key, values });
+      }
+    }
+    
+    return rows;
+  };
+
+  const renderComparisonTable = (title: string, keys: string[], icon: React.ReactNode) => {
+    const rows = getComparisonRows(keys);
+    if (rows.length === 0) return null;
+
+    return (
+      <div className="mb-8">
+        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          {icon}
+          {title}
+        </h3>
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full border-collapse" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
+            <thead>
+              <tr className="bg-primary text-primary-foreground">
+                <th className="p-3 text-left font-medium border-r border-primary-foreground/20">Property</th>
+                {data.properties.map((property, idx) => (
+                  <th key={idx} className="p-3 text-left font-medium min-w-[180px]">
+                    {getValue(property, 'projectname')?.substring(0, 25) || `Property ${idx + 1}`}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIdx) => (
+                <tr key={row.key} className={rowIdx % 2 === 0 ? "bg-muted/30" : "bg-background"}>
+                  <td className="p-3 font-medium text-muted-foreground border-r">{formatLabel(row.key)}</td>
+                  {row.values.map((value, colIdx) => (
+                    <td key={colIdx} className="p-3" data-testid={`cell-${row.key}-${colIdx}`}>
+                      {value || <span className="text-muted-foreground/50">-</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
-      <header className="bg-primary text-primary-foreground py-6 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-2xl font-bold" data-testid="text-page-title">Property Comparison</h1>
-              <p className="text-primary-foreground/80">Curated properties for your review</p>
-            </div>
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                <span data-testid="text-lead-name">{data.leadName}</span>
+      <header className="relative">
+        <div className="w-full">
+          <img 
+            src={heroImage} 
+            alt="Relai Right Home Report" 
+            className="w-full h-auto object-cover"
+            data-testid="img-hero"
+          />
+        </div>
+        <div className="bg-primary/95 text-primary-foreground py-4 px-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <p className="text-primary-foreground/80">Personalized property comparison prepared for you</p>
               </div>
-              <div className="flex items-center gap-2">
-                <Phone className="h-5 w-5" />
-                <span data-testid="text-lead-mobile">{data.leadMobile}</span>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  <span data-testid="text-lead-name">{data.leadName}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-5 w-5" />
+                  <span data-testid="text-lead-mobile">{data.leadMobile}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -155,168 +248,216 @@ const SharePage = () => {
         <section>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
-            Properties Overview
+            Properties Overview ({data.properties.length} Properties)
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data.properties.map((property, idx) => (
-              <Card key={idx} className="overflow-hidden" data-testid={`card-property-${idx}`}>
-                <CardHeader className="bg-primary/10 pb-3">
-                  <CardTitle className="text-lg line-clamp-1" data-testid={`text-property-name-${idx}`}>
-                    {getValue(property, "projectname", "projectName")}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    By {getValue(property, "buildername", "builderName")}
-                  </p>
-                </CardHeader>
-                <CardContent className="pt-4 space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{getValue(property, "areaname", "city", "projectlocation")}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm">
-                    <IndianRupee className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{formatPrice(getValue(property, "price_range", "priceRange"))}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm">
-                    <Ruler className="h-4 w-4 text-muted-foreground" />
-                    <span>{getValue(property, "size_range", "sizeRange", "sqfeet")} sq.ft</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm">
-                    <Home className="h-4 w-4 text-muted-foreground" />
-                    <span>{getConfigurations(property)}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{getValue(property, "possession_date", "possessionDate")}</span>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    <Badge variant="secondary" className="text-xs">
-                      RERA: {getValue(property, "rera_number", "RERA_Number")}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {getValue(property, "project_type", "Project_Type")}
-                    </Badge>
-                    {getValue(property, "grid_score", "GRID_Score") !== "N/A" && (
-                      <Badge className="text-xs bg-green-600">
-                        GRID: {getValue(property, "grid_score", "GRID_Score")}
-                      </Badge>
+            {data.properties.map((property, idx) => {
+              const projectName = getValue(property, 'projectname');
+              const builderName = getValue(property, 'buildername');
+              const areaName = getValue(property, 'areaname', 'city');
+              const price = formatPrice(getValue(property, 'baseprojectprice'));
+              const sqft = getValue(property, 'sqfeet');
+              const bhk = getValue(property, 'bhk');
+              const possession = getValue(property, 'possession_date');
+              const reraNumber = getValue(property, 'rera_number');
+              const projectType = getValue(property, 'project_type');
+              const gridScore = getValue(property, 'GRID_Score');
+              const pricePerSft = getValue(property, 'price_per_sft');
+              
+              return (
+                <Card key={idx} className="overflow-hidden" data-testid={`card-property-${idx}`}>
+                  <CardHeader className="bg-primary/10 pb-3">
+                    <CardTitle className="text-lg line-clamp-1" data-testid={`text-property-name-${idx}`}>
+                      {projectName || `Property ${idx + 1}`}
+                    </CardTitle>
+                    {builderName && (
+                      <p className="text-sm text-muted-foreground">By {builderName}</p>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-3">
+                    {areaName && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span>{areaName}</span>
+                      </div>
+                    )}
+                    
+                    {price && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <IndianRupee className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="font-medium">{price}</span>
+                        {pricePerSft && <span className="text-muted-foreground">({pricePerSft}/sft)</span>}
+                      </div>
+                    )}
+                    
+                    {sqft && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Ruler className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span>{sqft} sq.ft</span>
+                        {bhk && <span className="text-muted-foreground">| {bhk} BHK</span>}
+                      </div>
+                    )}
+                    
+                    {possession && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span>Possession: {possession}</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {reraNumber && (
+                        <Badge variant="secondary" className="text-xs">
+                          RERA: {reraNumber}
+                        </Badge>
+                      )}
+                      {projectType && (
+                        <Badge variant="outline" className="text-xs">
+                          {projectType}
+                        </Badge>
+                      )}
+                      {gridScore && (
+                        <Badge className="text-xs bg-green-600">
+                          GRID: {gridScore}
+                        </Badge>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
+        </section>
+
+        <Separator />
+
+        <section>
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <CheckCircle className="h-6 w-6 text-primary" />
+            Comprehensive Property Comparison
+          </h2>
+          
+          {renderComparisonTable("Basic Information", basicInfoKeys, <Building2 className="h-5 w-5 text-primary" />)}
+          {renderComparisonTable("Pricing Details", pricingKeys, <IndianRupee className="h-5 w-5 text-primary" />)}
+          {renderComparisonTable("Unit Configuration", configurationKeys, <Home className="h-5 w-5 text-primary" />)}
+          {renderComparisonTable("Project Details", projectDetailsKeys, <Building className="h-5 w-5 text-primary" />)}
+          {renderComparisonTable("Amenities & Features", amenitiesKeys, <Waves className="h-5 w-5 text-primary" />)}
+          {renderComparisonTable("Scores & Ratings", scoreKeys, <Star className="h-5 w-5 text-primary" />)}
+          {renderComparisonTable("Nearby Facilities Count", nearbyKeys, <MapPin className="h-5 w-5 text-primary" />)}
         </section>
 
         <Separator />
 
         <section>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-primary" />
-            Property Comparison
+            <Shield className="h-5 w-5 text-primary" />
+            Additional Property Details
           </h2>
           
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse" data-testid="table-comparison">
-              <thead>
-                <tr className="bg-primary text-primary-foreground">
-                  <th className="p-3 text-left font-medium">Metric</th>
-                  {data.properties.map((property, idx) => (
-                    <th key={idx} className="p-3 text-left font-medium min-w-[180px]">
-                      {getValue(property, "projectname", "projectName").substring(0, 20)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonMetrics.map((metric, rowIdx) => (
-                  <tr key={metric.key} className={rowIdx % 2 === 0 ? "bg-muted/30" : "bg-background"}>
-                    <td className="p-3 font-medium text-muted-foreground">{metric.label}</td>
-                    {data.properties.map((property, colIdx) => {
-                      let value = getValue(property, metric.key);
-                      if (metric.format === "price") value = formatPrice(value);
-                      return (
-                        <td key={colIdx} className="p-3" data-testid={`cell-${metric.key}-${colIdx}`}>
-                          {value}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <Separator />
-
-        <section>
-          <h2 className="text-xl font-semibold mb-4">Detailed Property Information</h2>
-          
-          {data.properties.map((property, idx) => (
-            <Card key={idx} className="mb-6" data-testid={`card-details-${idx}`}>
-              <CardHeader>
-                <CardTitle>{getValue(property, "projectname", "projectName")}</CardTitle>
-                <p className="text-muted-foreground">
-                  {getValue(property, "buildername", "builderName")} | {getValue(property, "areaname", "city")}
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <DetailItem label="RERA Number" value={getValue(property, "rera_number", "RERA_Number")} />
-                  <DetailItem label="Project Type" value={getValue(property, "project_type", "Project_Type")} />
-                  <DetailItem label="Price Range" value={formatPrice(getValue(property, "price_range"))} />
-                  <DetailItem label="Price/Sq Ft" value={getValue(property, "price_per_sft")} />
-                  <DetailItem label="Size Range" value={getValue(property, "size_range", "sqfeet")} />
-                  <DetailItem label="Configurations" value={getConfigurations(property)} />
-                  <DetailItem label="GRID Score" value={getValue(property, "grid_score")} />
-                  <DetailItem label="Construction Status" value={getValue(property, "construction_status")} />
-                  <DetailItem label="Possession Date" value={getValue(property, "possession_date")} />
-                  <DetailItem label="Total Land Area" value={getValue(property, "total_land_area")} />
-                  <DetailItem label="Number of Towers" value={getValue(property, "number_of_towers")} />
-                  <DetailItem label="Total Units" value={getValue(property, "total_units")} />
-                  <DetailItem label="Available Units" value={getValue(property, "available_units")} />
-                  <DetailItem label="Units Sold" value={getValue(property, "units_sold")} />
-                  <DetailItem label="Flats Per Floor" value={getValue(property, "number_of_flats_per_floor")} />
-                  <DetailItem label="Floor Rise Charges" value={getValue(property, "floor_rise_charges")} />
-                  <DetailItem label="Car Parking Charges" value={getValue(property, "car_parking_charges")} />
-                  <DetailItem label="Maintenance Charges" value={getValue(property, "maintenance_charges")} />
-                  <DetailItem label="Bank Approvals" value={getValue(property, "bank_approvals")} />
-                </div>
-                
-                {getValue(property, "external_amenities", "amenities") !== "N/A" && (
-                  <div className="mt-4">
-                    <p className="font-medium text-muted-foreground mb-2">Amenities</p>
-                    <p className="text-sm">{getValue(property, "external_amenities", "amenities")}</p>
+          {data.properties.map((property, idx) => {
+            const projectName = getValue(property, 'projectname');
+            const builderName = getValue(property, 'buildername');
+            const areaName = getValue(property, 'areaname');
+            const googleRating = getValue(property, 'google_place_rating');
+            const googleAddress = getValue(property, 'google_place_address');
+            const mapsUrl = getValue(property, 'mobile_google_map_url', 'google_maps_location', 'projectlocation');
+            const brochure = getValue(property, 'projectbrochure');
+            
+            const allKeys = Object.keys(property).filter(key => 
+              !basicInfoKeys.includes(key) && 
+              !pricingKeys.includes(key) && 
+              !configurationKeys.includes(key) &&
+              !projectDetailsKeys.includes(key) &&
+              !amenitiesKeys.includes(key) &&
+              !scoreKeys.includes(key) &&
+              !nearbyKeys.includes(key) &&
+              !key.includes('nearest_') &&
+              !key.includes('google_place_raw') &&
+              isValidValue(property[key])
+            );
+            
+            return (
+              <Card key={idx} className="mb-6" data-testid={`card-details-${idx}`}>
+                <CardHeader>
+                  <CardTitle>{projectName || `Property ${idx + 1}`}</CardTitle>
+                  <div className="flex flex-wrap gap-2 text-muted-foreground text-sm">
+                    {builderName && <span>{builderName}</span>}
+                    {areaName && <span>| {areaName}</span>}
+                    {googleRating && (
+                      <span className="flex items-center gap-1">
+                        | <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> {googleRating}
+                      </span>
+                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                </CardHeader>
+                <CardContent>
+                  {googleAddress && (
+                    <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Address</p>
+                      <p className="text-sm">{googleAddress}</p>
+                    </div>
+                  )}
+                  
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {mapsUrl && (
+                      <a 
+                        href={mapsUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                      >
+                        <MapPin className="h-4 w-4" /> View on Google Maps
+                      </a>
+                    )}
+                    {brochure && (
+                      <a 
+                        href={brochure} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                      >
+                        <Building2 className="h-4 w-4" /> View Brochure
+                      </a>
+                    )}
+                  </div>
+                  
+                  {allKeys.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {allKeys.slice(0, 16).map(key => {
+                        const value = property[key];
+                        if (!isValidValue(value)) return null;
+                        return (
+                          <div key={key} className="text-sm">
+                            <p className="text-muted-foreground">{formatLabel(key)}</p>
+                            <p className="font-medium truncate" title={String(value)}>
+                              {String(value).substring(0, 50)}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </section>
       </main>
 
       <footer className="bg-muted py-6 mt-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-muted-foreground text-sm">
-          <p>Powered by Relai World | www.relai.world</p>
-          <p className="mt-1">This comparison was generated on {new Date(data.createdAt).toLocaleDateString()}</p>
+          <p className="font-medium">Powered by Relai World | www.relai.world</p>
+          <p className="mt-1">This comparison was generated on {new Date(data.createdAt).toLocaleDateString('en-IN', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}</p>
+          <p className="mt-2 text-xs">For the right home, trust Relai.</p>
         </div>
       </footer>
     </div>
   );
 };
-
-const DetailItem = ({ label, value }: { label: string; value: string }) => (
-  <div>
-    <p className="text-sm text-muted-foreground">{label}</p>
-    <p className="font-medium">{value}</p>
-  </div>
-);
 
 export default SharePage;
