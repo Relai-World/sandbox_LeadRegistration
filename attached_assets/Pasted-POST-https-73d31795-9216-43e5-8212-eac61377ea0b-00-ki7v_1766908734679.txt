@@ -1,0 +1,37 @@
+POST https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/api/properties/save 500 (Internal Server Error)
+handleSubmit @ ProjectForm.tsx:1386
+callCallback2 @ chunk-LPF6KSF2.js?v=be9ece87:3680
+invokeGuardedCallbackDev @ chunk-LPF6KSF2.js?v=be9ece87:3705
+invokeGuardedCallback @ chunk-LPF6KSF2.js?v=be9ece87:3739
+invokeGuardedCallbackAndCatchFirstError @ chunk-LPF6KSF2.js?v=be9ece87:3742
+executeDispatch @ chunk-LPF6KSF2.js?v=be9ece87:7046
+processDispatchQueueItemsInOrder @ chunk-LPF6KSF2.js?v=be9ece87:7066
+processDispatchQueue @ chunk-LPF6KSF2.js?v=be9ece87:7075
+dispatchEventsForPlugins @ chunk-LPF6KSF2.js?v=be9ece87:7083
+(anonymous) @ chunk-LPF6KSF2.js?v=be9ece87:7206
+batchedUpdates$1 @ chunk-LPF6KSF2.js?v=be9ece87:18966
+batchedUpdates @ chunk-LPF6KSF2.js?v=be9ece87:3585
+dispatchEventForPluginEventSystem @ chunk-LPF6KSF2.js?v=be9ece87:7205
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-LPF6KSF2.js?v=be9ece87:5484
+dispatchEvent @ chunk-LPF6KSF2.js?v=be9ece87:5478
+dispatchDiscreteEvent @ chunk-LPF6KSF2.js?v=be9ece87:5455Understand this error
+ProjectForm.tsx:1394 Submission response status: 500
+ProjectForm.tsx:1396 Submission response: {success: false, message: 'Failed to save property', error: 'invalid input syntax for type numeric: "---"'}error: "invalid input syntax for type numeric: \"---\""message: "Failed to save property"success: false[[Prototype]]: Object
+ProjectForm.tsx:1432 Submission failed: {success: false, message: 'Failed to save property', error: 'invalid input syntax for type numeric: "---"'}error: "invalid input syntax for type numeric: \"---\""message: "Failed to save property"success: false[[Prototype]]: Object
+handleSubmit @ ProjectForm.tsx:1432
+await in handleSubmit
+callCallback2 @ chunk-LPF6KSF2.js?v=be9ece87:3680
+invokeGuardedCallbackDev @ chunk-LPF6KSF2.js?v=be9ece87:3705
+invokeGuardedCallback @ chunk-LPF6KSF2.js?v=be9ece87:3739
+invokeGuardedCallbackAndCatchFirstError @ chunk-LPF6KSF2.js?v=be9ece87:3742
+executeDispatch @ chunk-LPF6KSF2.js?v=be9ece87:7046
+processDispatchQueueItemsInOrder @ chunk-LPF6KSF2.js?v=be9ece87:7066
+processDispatchQueue @ chunk-LPF6KSF2.js?v=be9ece87:7075
+dispatchEventsForPlugins @ chunk-LPF6KSF2.js?v=be9ece87:7083
+(anonymous) @ chunk-LPF6KSF2.js?v=be9ece87:7206
+batchedUpdates$1 @ chunk-LPF6KSF2.js?v=be9ece87:18966
+batchedUpdates @ chunk-LPF6KSF2.js?v=be9ece87:3585
+dispatchEventForPluginEventSystem @ chunk-LPF6KSF2.js?v=be9ece87:7205
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-LPF6KSF2.js?v=be9ece87:5484
+dispatchEvent @ chunk-LPF6KSF2.js?v=be9ece87:5478
+dispatchDiscreteEvent @ chunk-LPF6KSF2.js?v=be9ece87:5455Understand this error
