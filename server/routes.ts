@@ -1405,6 +1405,36 @@ export async function registerRoutes(
 
   // === PROPERTIES SAVE (for ProjectForm submission) ===
 
+  // Helper functions to sanitize values for database
+  const sanitizeNumeric = (value: any, defaultValue: number = 0): number | null => {
+    if (value === null || value === undefined || value === '' || value === '---' || value === 'N/A') {
+      return defaultValue;
+    }
+    const num = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+    return isNaN(num) ? defaultValue : num;
+  };
+
+  const sanitizeInteger = (value: any, defaultValue: number = 0): number | null => {
+    if (value === null || value === undefined || value === '' || value === '---' || value === 'N/A') {
+      return defaultValue;
+    }
+    const num = parseInt(String(value).replace(/[^0-9-]/g, ''), 10);
+    return isNaN(num) ? defaultValue : num;
+  };
+
+  const sanitizeText = (value: any, defaultValue: string | null = null): string | null => {
+    if (value === null || value === undefined || value === '' || value === '---') {
+      return defaultValue;
+    }
+    return String(value);
+  };
+
+  const sanitizeEnum = (value: any, validValues: string[], defaultValue: string): string => {
+    if (!value || value === '---' || value === '') return defaultValue;
+    const strValue = String(value);
+    return validValues.includes(strValue) ? strValue : defaultValue;
+  };
+
   app.post('/api/properties/save', async (req, res) => {
     if (!supabase) {
       return res.status(503).json({ success: false, message: 'Database not available' });
@@ -1424,69 +1454,86 @@ export async function registerRoutes(
         });
       }
 
-      // Map frontend format to database format
+      // Valid enum values based on database schema
+      const projectTypes = ['Apartment', 'Villa', 'Plot', 'Commercial', 'Independent House', 'Row House'];
+      const communityTypes = ['Gated Community', 'Non-Gated Community', 'Standalone', 'Semi Gated Community'];
+      const constructionStatuses = ['Pre-Launch', 'Under Construction', 'Ongoing', 'Ready to Move in', 'Nearing Possession', 'Completed'];
+      const powerBackupTypes = ['Full', 'Partial', 'None', 'DG Backup'];
+      const visitorParkingTypes = ['yes', 'no'];
+      const groundMovementTypes = ['yes', 'no'];
+      const constructionMaterials = ['Concrete', 'Steel', 'Hybrid', 'Pre-Fabricated', 'Brick', 'Wood'];
+      const yesNoTypes = ['yes', 'no'];
+
+      // Map frontend format to database format with proper sanitization
       const dbData: any = {
         rera_number: reraNumber,
-        projectname: propertyData.ProjectName || propertyData.projectname || null,
-        buildername: propertyData.BuilderName || propertyData.buildername || null,
-        areaname: propertyData.AreaName || propertyData.areaname || null,
-        projectlocation: propertyData.ProjectLocation || propertyData.projectlocation || null,
-        project_type: propertyData.Project_Type || propertyData.project_type || null,
-        buildingname: propertyData.BuildingName || propertyData.buildingname || null,
-        communitytype: propertyData.CommunityType || propertyData.communitytype || null,
-        total_land_area: propertyData.Total_land_Area || propertyData.total_land_area || null,
-        number_of_towers: propertyData.Number_of_Towers || propertyData.number_of_towers || null,
-        number_of_floors: propertyData.Number_of_Floors || propertyData.number_of_floors || null,
-        number_of_flats_per_floor: propertyData.Number_of_Flats_Per_Floor || propertyData.number_of_flats_per_floor || null,
-        total_number_of_units: propertyData.Total_Number_of_Units || propertyData.total_number_of_units || null,
-        project_launch_date: propertyData.Launch_Date || propertyData.project_launch_date || null,
-        possession_date: propertyData.Possession_Date || propertyData.possession_date || null,
-        construction_status: propertyData.Construction_Status || propertyData.construction_status || null,
-        open_space: propertyData.Open_Space || propertyData.open_space || null,
-        carpet_area_percentage: propertyData.Carpet_area_Percentage || propertyData.carpet_area_percentage || null,
-        floor_to_ceiling_height: propertyData.Floor_to_Ceiling_Height || propertyData.floor_to_ceiling_height || null,
-        price_per_sft: propertyData.Price_per_sft || propertyData.price_per_sft || null,
-        total_buildup_area: propertyData.Total_Buildup_Area || propertyData.total_buildup_area || null,
-        uds: propertyData.UDS || propertyData.uds || null,
-        fsi: propertyData.FSI || propertyData.fsi || null,
-        main_door_height: propertyData.Main_Door_Height || propertyData.main_door_height || null,
+        projectname: sanitizeText(propertyData.ProjectName || propertyData.projectname, 'Untitled Project'),
+        buildername: sanitizeText(propertyData.BuilderName || propertyData.buildername, 'Unknown Builder'),
+        areaname: sanitizeText(propertyData.AreaName || propertyData.areaname),
+        projectlocation: sanitizeText(propertyData.ProjectLocation || propertyData.projectlocation),
+        project_type: sanitizeEnum(propertyData.Project_Type || propertyData.project_type, projectTypes, 'Apartment'),
+        buildingname: sanitizeText(propertyData.BuildingName || propertyData.buildingname),
+        communitytype: sanitizeEnum(propertyData.CommunityType || propertyData.communitytype, communityTypes, 'Gated Community'),
+        total_land_area: sanitizeText(propertyData.Total_land_Area || propertyData.total_land_area, '0'),
+        number_of_towers: sanitizeInteger(propertyData.Number_of_Towers || propertyData.number_of_towers, 1),
+        number_of_floors: sanitizeInteger(propertyData.Number_of_Floors || propertyData.number_of_floors, 1),
+        number_of_flats_per_floor: sanitizeInteger(propertyData.Number_of_Flats_Per_Floor || propertyData.number_of_flats_per_floor, 1),
+        total_number_of_units: sanitizeInteger(propertyData.Total_Number_of_Units || propertyData.total_number_of_units, 1),
+        project_launch_date: sanitizeText(propertyData.Launch_Date || propertyData.project_launch_date),
+        possession_date: sanitizeText(propertyData.Possession_Date || propertyData.possession_date),
+        construction_status: sanitizeEnum(propertyData.Construction_Status || propertyData.construction_status, constructionStatuses, 'Ongoing'),
+        open_space: sanitizeNumeric(propertyData.Open_Space || propertyData.open_space, 0),
+        carpet_area_percentage: sanitizeNumeric(propertyData.Carpet_area_Percentage || propertyData.carpet_area_percentage, 0),
+        floor_to_ceiling_height: sanitizeNumeric(propertyData.Floor_to_Ceiling_Height || propertyData.floor_to_ceiling_height, 0),
+        price_per_sft: sanitizeNumeric(propertyData.Price_per_sft || propertyData.price_per_sft, 0),
+        total_buildup_area: sanitizeText(propertyData.Total_Buildup_Area || propertyData.total_buildup_area),
+        uds: sanitizeText(propertyData.UDS || propertyData.uds),
+        fsi: sanitizeText(propertyData.FSI || propertyData.fsi),
+        main_door_height: sanitizeText(propertyData.Main_Door_Height || propertyData.main_door_height),
         external_amenities: propertyData.External_Amenities || propertyData.external_amenities || null,
         specification: propertyData.Specification || propertyData.specification || null,
-        powerbackup: propertyData.PowerBackup || propertyData.powerbackup || null,
-        no_of_passenger_lift: propertyData.No_of_Passenger_lift || propertyData.no_of_passenger_lift || null,
-        no_of_service_lift: propertyData.No_of_Service_lift || propertyData.no_of_service_lift || null,
-        visitor_parking: propertyData.Visitor_Parking || propertyData.visitor_parking || null,
-        ground_vehicle_movement: propertyData.Ground_vehicle_Movement || propertyData.ground_vehicle_movement || null,
-        baseprojectprice: propertyData.baseprojectprice || propertyData['Base Project Price'] || 0,
-        commission_percentage: propertyData.Commission_percentage || propertyData.commission_percentage || null,
-        amount_for_extra_car_parking: propertyData.Amount_For_Extra_Car_Parking || propertyData.amount_for_extra_car_parking || null,
-        home_loan: propertyData.Home_Loan || propertyData.home_loan || null,
-        what_is_there_price: propertyData.What_is_there_Price || propertyData.what_is_there_price || null,
-        what_is_relai_price: propertyData.What_is_Relai_Price || propertyData.what_is_relai_price || null,
-        floor_rise_charges: propertyData.Floor_Rise_Charges || propertyData.floor_rise_charges || null,
-        floor_rise_amount_per_floor: propertyData.Floor_Rise_Amount_per_Floor || propertyData.floor_rise_amount_per_floor || null,
-        floor_rise_applicable_above_floor_no: propertyData.Floor_Rise_Applicable_Above_Floor_No || propertyData.floor_rise_applicable_above_floor_no || null,
-        facing_charges: propertyData.Facing_Charges || propertyData.facing_charges || null,
-        preferential_location_charges: propertyData.Preferential_Location_Charges || propertyData.preferential_location_charges || null,
-        preferential_location_charges_conditions: propertyData.Preferential_Location_Charges_Conditions || propertyData.preferential_location_charges_conditions || null,
+        powerbackup: sanitizeEnum(propertyData.PowerBackup || propertyData.powerbackup, powerBackupTypes, 'Full'),
+        no_of_passenger_lift: sanitizeInteger(propertyData.No_of_Passenger_lift || propertyData.no_of_passenger_lift, 0),
+        no_of_service_lift: sanitizeInteger(propertyData.No_of_Service_lift || propertyData.no_of_service_lift, 0),
+        visitor_parking: sanitizeEnum(propertyData.Visitor_Parking || propertyData.visitor_parking, visitorParkingTypes, 'yes'),
+        ground_vehicle_movement: sanitizeEnum(propertyData.Ground_vehicle_Movement || propertyData.ground_vehicle_movement, groundMovementTypes, 'yes'),
+        baseprojectprice: sanitizeNumeric(propertyData.baseprojectprice || propertyData['Base Project Price'], 0),
+        commission_percentage: sanitizeNumeric(propertyData.Commission_percentage || propertyData.commission_percentage, 0),
+        amount_for_extra_car_parking: sanitizeNumeric(propertyData.Amount_For_Extra_Car_Parking || propertyData.amount_for_extra_car_parking, 0),
+        home_loan: sanitizeText(propertyData.Home_Loan || propertyData.home_loan),
+        what_is_there_price: sanitizeText(propertyData.What_is_there_Price || propertyData.what_is_there_price),
+        what_is_relai_price: sanitizeText(propertyData.What_is_Relai_Price || propertyData.what_is_relai_price),
+        floor_rise_charges: sanitizeText(propertyData.Floor_Rise_Charges || propertyData.floor_rise_charges),
+        floor_rise_amount_per_floor: sanitizeText(propertyData.Floor_Rise_Amount_per_Floor || propertyData.floor_rise_amount_per_floor),
+        floor_rise_applicable_above_floor_no: sanitizeText(propertyData.Floor_Rise_Applicable_Above_Floor_No || propertyData.floor_rise_applicable_above_floor_no),
+        facing_charges: sanitizeText(propertyData.Facing_Charges || propertyData.facing_charges),
+        preferential_location_charges: sanitizeText(propertyData.Preferential_Location_Charges || propertyData.preferential_location_charges),
+        preferential_location_charges_conditions: sanitizeText(propertyData.Preferential_Location_Charges_Conditions || propertyData.preferential_location_charges_conditions),
         available_banks_for_loan: propertyData.Available_Banks_for_Loan || propertyData.available_banks_for_loan || null,
-        builder_age: propertyData.Builder_Age || propertyData.builder_age || null,
-        builder_total_properties: propertyData.Builder_Total_Properties || propertyData.builder_total_properties || null,
-        builder_upcoming_properties: propertyData.Builder_Upcoming_Properties || propertyData.builder_upcoming_properties || null,
-        builder_completed_properties: propertyData.Builder_Completed_Properties || propertyData.builder_completed_properties || null,
-        builder_ongoing_projects: propertyData.Builder_Ongoing_Projects || propertyData.builder_ongoing_projects || null,
-        builder_origin_city: propertyData.Builder_Origin_City || propertyData.builder_origin_city || null,
+        builder_age: sanitizeText(propertyData.Builder_Age || propertyData.builder_age),
+        builder_total_properties: sanitizeText(propertyData.Builder_Total_Properties || propertyData.builder_total_properties),
+        builder_upcoming_properties: sanitizeText(propertyData.Builder_Upcoming_Properties || propertyData.builder_upcoming_properties),
+        builder_completed_properties: sanitizeText(propertyData.Builder_Completed_Properties || propertyData.builder_completed_properties),
+        builder_ongoing_projects: sanitizeText(propertyData.Builder_Ongoing_Projects || propertyData.builder_ongoing_projects),
+        builder_origin_city: sanitizeText(propertyData.Builder_Origin_City || propertyData.builder_origin_city),
         builder_operating_locations: propertyData.Builder_Operating_Locations || propertyData.builder_operating_locations || null,
-        previous_complaints_on_builder: propertyData.Previous_Complaints_on_Builder || propertyData.previous_complaints_on_builder || null,
-        complaint_details: propertyData.Complaint_Details || propertyData.complaint_details || null,
-        construction_material: propertyData.Construction_Material || propertyData.construction_material || null,
-        configurations: propertyData.configurations || null,
+        previous_complaints_on_builder: sanitizeText(propertyData.Previous_Complaints_on_Builder || propertyData.previous_complaints_on_builder),
+        complaint_details: sanitizeText(propertyData.Complaint_Details || propertyData.complaint_details),
+        construction_material: sanitizeEnum(propertyData.Construction_Material || propertyData.construction_material, constructionMaterials, 'Concrete'),
+        configurations: propertyData.configurations || [],
         status: propertyData.status === 'Submitted' ? 'Submitted' : 'Unverified',
-        useremail: propertyData.userEmail || propertyData.useremail || null,
-        projectbrochure: propertyData.ProjectBrochure || propertyData.projectbrochure || null,
-        pricesheet_link_1: propertyData.Pricesheet_Link || propertyData.pricesheet_link_1 || null,
-        city: propertyData.City || propertyData.city || null,
-        state: propertyData.State || propertyData.state || null,
+        useremail: sanitizeText(propertyData.userEmail || propertyData.useremail, 'unknown@example.com'),
+        poc_name: sanitizeText(propertyData.POC_Name || propertyData.poc_name, 'Unknown'),
+        poc_contact: sanitizeNumeric(propertyData.POC_Contact || propertyData.poc_contact, 0),
+        poc_role: sanitizeText(propertyData.POC_Role || propertyData.poc_role, 'Agent'),
+        person_to_confirm_registration: propertyData.Person_to_Confirm_Registration || propertyData.person_to_confirm_registration || {},
+        after_agreement_of_sale_what_is_payout_time_period: sanitizeNumeric(propertyData.After_Agreement_of_Sale_Payout_Time || propertyData.after_agreement_of_sale_what_is_payout_time_period, 0),
+        turnaround_time_for_lead_acknowledgement: sanitizeNumeric(propertyData.Turnaround_Time_for_Lead || propertyData.turnaround_time_for_lead_acknowledgement, 0),
+        is_there_validity_period_for_registered_lead: sanitizeEnum(propertyData.Is_There_Validity_Period || propertyData.is_there_validity_period_for_registered_lead, yesNoTypes, 'no'),
+        projectbrochure: sanitizeText(propertyData.ProjectBrochure || propertyData.projectbrochure),
+        pricesheet_link_1: sanitizeText(propertyData.Pricesheet_Link || propertyData.pricesheet_link_1),
+        city: sanitizeText(propertyData.City || propertyData.city),
+        state: sanitizeText(propertyData.State || propertyData.state),
         updatedat: new Date().toISOString()
       };
 
