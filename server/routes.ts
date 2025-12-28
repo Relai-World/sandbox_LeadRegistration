@@ -1764,15 +1764,23 @@ export async function registerRoutes(
           const reraNumber = project.RERA_Number || project.rera_number;
           
           if (reraNumber && reraNumber !== 'N/A') {
-            const { data: propertyData } = await supabase
+            const { data: propertyDataArray, error } = await supabase
               .from('unified_data')
               .select('*')
               .eq('rera_number', reraNumber)
-              .maybeSingle();
+              .limit(1);
+            
+            if (error) {
+              console.log('PDF: Error fetching from unified_data for', reraNumber, error.message);
+            }
+            
+            const propertyData = propertyDataArray && propertyDataArray.length > 0 ? propertyDataArray[0] : null;
             
             if (propertyData) {
+              console.log('PDF: Found unified_data for', reraNumber, '- Keys:', Object.keys(propertyData).length);
               enrichedProjects.push({ ...project, ...propertyData });
             } else {
+              console.log('PDF: No unified_data found for', reraNumber);
               enrichedProjects.push(project);
             }
           } else {
@@ -1780,6 +1788,7 @@ export async function registerRoutes(
           }
         }
       } else {
+        console.log('PDF: Supabase not available');
         enrichedProjects.push(...projects);
       }
 
@@ -1805,12 +1814,17 @@ export async function registerRoutes(
         return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
       };
 
-      // Helper function to safely get value
+      // Helper function to safely get value - check multiple case variations
       const getValue = (obj: any, ...keys: string[]): string => {
         for (const key of keys) {
-          const value = obj[key] || obj[key.toLowerCase()] || obj[key.toUpperCase()];
-          if (value && value !== 'N/A' && value !== '---' && value !== null && value !== undefined) {
-            return String(value);
+          // Try exact key first
+          if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '' && obj[key] !== '---') {
+            return String(obj[key]);
+          }
+          // Try lowercase
+          const lowerKey = key.toLowerCase();
+          if (obj[lowerKey] !== undefined && obj[lowerKey] !== null && obj[lowerKey] !== '' && obj[lowerKey] !== '---') {
+            return String(obj[lowerKey]);
           }
         }
         return 'N/A';
@@ -1842,8 +1856,8 @@ export async function registerRoutes(
         doc.addPage();
 
         // Header with project name
-        const projectName = getValue(property, 'projectName', 'projectname', 'ProjectName');
-        const builderName = getValue(property, 'builderName', 'buildername', 'BuilderName');
+        const projectName = getValue(property, 'projectname', 'projectName');
+        const builderName = getValue(property, 'buildername', 'builderName');
         
         doc.fontSize(20).font('Helvetica-Bold').fillColor('#1a365d')
            .text(projectName, 50, 50);
@@ -1865,12 +1879,12 @@ export async function registerRoutes(
         doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
         
         const basicInfo = [
-          ['RERA Number', getValue(property, 'RERA_Number', 'rera_number')],
-          ['Location', getValue(property, 'areaname', 'AreaName', 'area_name')],
-          ['City', getValue(property, 'city', 'City')],
-          ['Project Type', getValue(property, 'Project_Type', 'project_type', 'property_type')],
-          ['Community Type', getValue(property, 'CommunityType', 'communitytype', 'community_type')],
-          ['Construction Status', getValue(property, 'constructionStatus', 'construction_status', 'Construction_Status')],
+          ['RERA Number', getValue(property, 'rera_number', 'RERA_Number')],
+          ['Location', getValue(property, 'areaname', 'projectlocation')],
+          ['City', getValue(property, 'city')],
+          ['Project Type', getValue(property, 'project_type')],
+          ['Community Type', getValue(property, 'communitytype')],
+          ['Construction Status', getValue(property, 'construction_status')],
         ];
 
         basicInfo.forEach(([label, value], i) => {
@@ -1891,12 +1905,12 @@ export async function registerRoutes(
         doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
         
         const specs = [
-          ['Total Land Area', getValue(property, 'totalLandArea', 'total_land_area', 'Total_land_Area') + ' Acres'],
-          ['Number of Towers', getValue(property, 'number_of_towers', 'Number_of_Towers')],
-          ['Floors', getValue(property, 'number_of_floors', 'Number_of_Floors')],
-          ['Flats Per Floor', getValue(property, 'number_of_flats_per_floor', 'Number_of_Flats_Per_Floor')],
-          ['Total Units', getValue(property, 'total_number_of_units', 'Total_Number_of_Units')],
-          ['Open Space', getValue(property, 'open_space', 'Open_Space')],
+          ['Total Land Area', getValue(property, 'total_land_area') + ' Acres'],
+          ['Number of Towers', getValue(property, 'number_of_towers')],
+          ['Floors', getValue(property, 'number_of_floors')],
+          ['Flats Per Floor', getValue(property, 'number_of_flats_per_floor')],
+          ['Total Units', getValue(property, 'total_number_of_units')],
+          ['Open Space', getValue(property, 'open_space')],
         ];
 
         specs.forEach(([label, value], i) => {
@@ -1917,10 +1931,10 @@ export async function registerRoutes(
         doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
         
         const pricing = [
-          ['Price Per Sqft', formatCurrency(getValue(property, 'pricePerSft', 'price_per_sft', 'Price_per_sft'))],
-          ['Base Project Price', formatCurrency(getValue(property, 'baseprojectprice', 'Base Project Price', 'base_project_price'))],
+          ['Price Per Sqft', formatCurrency(getValue(property, 'price_per_sft'))],
+          ['Base Project Price', formatCurrency(getValue(property, 'baseprojectprice'))],
           ['Price Range', getValue(property, 'priceRange', 'price_range')],
-          ['Size Range', getValue(property, 'sizeRange', 'size_range') + ' Sqft'],
+          ['Size Range', getValue(property, 'sqfeet', 'sizeRange') + ' Sqft'],
         ];
 
         pricing.forEach(([label, value], i) => {
@@ -1941,10 +1955,10 @@ export async function registerRoutes(
         doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
         
         const amenities = [
-          ['Passenger Lifts', getValue(property, 'no_of_passenger_lift', 'No_of_Passenger_lift')],
-          ['Service Lifts', getValue(property, 'no_of_service_lift', 'No_of_Service_lift')],
-          ['Visitor Parking', getValue(property, 'visitor_parking', 'Visitor_Parking')],
-          ['Power Backup', getValue(property, 'powerbackup', 'PowerBackup', 'power_backup')],
+          ['Passenger Lifts', getValue(property, 'no_of_passenger_lift')],
+          ['Service Lifts', getValue(property, 'no_of_service_lift')],
+          ['Visitor Parking', getValue(property, 'visitor_parking')],
+          ['Power Backup', getValue(property, 'powerbackup')],
         ];
 
         amenities.forEach(([label, value], i) => {
@@ -1965,8 +1979,8 @@ export async function registerRoutes(
         doc.fontSize(10).font('Helvetica').fillColor('#4a5568');
         
         const timeline = [
-          ['Launch Date', getValue(property, 'project_launch_date', 'Project_Launch_Date', 'Launch_Date')],
-          ['Possession Date', getValue(property, 'possessionDate', 'possession_date', 'Possession_Date')],
+          ['Launch Date', getValue(property, 'project_launch_date')],
+          ['Possession Date', getValue(property, 'possession_date')],
         ];
 
         timeline.forEach(([label, value], i) => {
@@ -1980,7 +1994,7 @@ export async function registerRoutes(
         yPos += lineHeight + 20;
 
         // External Amenities if available
-        const externalAmenities = getValue(property, 'external_amenities', 'External_Amenities');
+        const externalAmenities = getValue(property, 'external_amenities');
         if (externalAmenities && externalAmenities !== 'N/A') {
           doc.fontSize(14).font('Helvetica-Bold').fillColor('#2d3748')
              .text('External Amenities', leftCol, yPos);
