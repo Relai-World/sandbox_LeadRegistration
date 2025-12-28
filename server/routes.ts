@@ -528,7 +528,128 @@ export async function registerRoutes(
     }
   });
 
-  // Get property details
+  // Helper function to map property data to frontend format
+  const mapPropertyToFrontendFormat = (propertyData: any) => {
+    // Handle configurations
+    let configurations: any[] = [];
+    const isVillaProject = propertyData.project_type === 'Villa' || propertyData.project_type === 'Villas';
+    
+    if (propertyData.configurations && Array.isArray(propertyData.configurations) && propertyData.configurations.length > 0) {
+      configurations = propertyData.configurations.map((config: any) => {
+        const transformedConfig: any = {
+          type: config.type,
+          facing: config.facing || null,
+          No_of_car_Parking: config.No_of_car_Parking || null,
+          uds: config.uds !== undefined && config.uds !== null ? config.uds : null,
+          configsoldoutstatus: config.configsoldoutstatus || config.configSoldOutStatus || 'active'
+        };
+        
+        if (isVillaProject) {
+          transformedConfig.sizeSqFt = config.sizeSqFt || null;
+          transformedConfig.sizeSqYd = config.sizeSqYd || null;
+        } else {
+          transformedConfig.sizeRange = config.sizeRange || config.sizeSqFt || null;
+          transformedConfig.sizeUnit = config.sizeUnit || 'Sq ft';
+        }
+        
+        return transformedConfig;
+      });
+    }
+
+    return {
+      ProjectName: propertyData.projectname,
+      BuilderName: propertyData.buildername,
+      RERA_Number: propertyData.rera_number,
+      AreaName: propertyData.areaname,
+      ProjectLocation: propertyData.projectlocation,
+      Project_Type: propertyData.project_type,
+      BuildingName: propertyData.buildingname,
+      CommunityType: propertyData.communitytype,
+      Total_land_Area: propertyData.total_land_area,
+      Number_of_Towers: propertyData.number_of_towers,
+      Number_of_Floors: propertyData.number_of_floors,
+      Number_of_Flats_Per_Floor: propertyData.number_of_flats_per_floor,
+      Total_Number_of_Units: propertyData.total_number_of_units,
+      Launch_Date: propertyData.project_launch_date,
+      Possession_Date: propertyData.possession_date,
+      Construction_Status: propertyData.construction_status,
+      Open_Space: propertyData.open_space,
+      Carpet_area_Percentage: propertyData.carpet_area_percentage,
+      Floor_to_Ceiling_Height: propertyData.floor_to_ceiling_height,
+      Price_per_sft: propertyData.price_per_sft,
+      Total_Buildup_Area: propertyData.total_buildup_area,
+      UDS: propertyData.uds,
+      FSI: propertyData.fsi,
+      Main_Door_Height: propertyData.main_door_height,
+      External_Amenities: propertyData.external_amenities,
+      Specification: propertyData.specification,
+      PowerBackup: propertyData.powerbackup,
+      No_of_Passenger_lift: propertyData.no_of_passenger_lift,
+      No_of_Service_lift: propertyData.no_of_service_lift,
+      Visitor_Parking: propertyData.visitor_parking,
+      Ground_vehicle_Movement: propertyData.ground_vehicle_movement,
+      'Base Project Price': propertyData.baseprojectprice,
+      baseprojectprice: propertyData.baseprojectprice,
+      Commission_percentage: propertyData.commission_percentage,
+      Amount_For_Extra_Car_Parking: propertyData.amount_for_extra_car_parking,
+      Home_Loan: propertyData.home_loan,
+      What_is_there_Price: propertyData.what_is_there_price,
+      What_is_Relai_Price: propertyData.what_is_relai_price,
+      Floor_Rise_Charges: propertyData.floor_rise_charges,
+      Floor_Rise_Amount_per_Floor: propertyData.floor_rise_amount_per_floor,
+      Floor_Rise_Applicable_Above_Floor_No: propertyData.floor_rise_applicable_above_floor_no,
+      Facing_Charges: propertyData.facing_charges,
+      Preferential_Location_Charges: propertyData.preferential_location_charges,
+      Preferential_Location_Charges_Conditions: propertyData.preferential_location_charges_conditions,
+      Available_Banks_for_Loan: propertyData.available_banks_for_loan,
+      Builder_Age: propertyData.builder_age,
+      Builder_Total_Properties: propertyData.builder_total_properties,
+      Builder_Upcoming_Properties: propertyData.builder_upcoming_properties,
+      Builder_Completed_Properties: propertyData.builder_completed_properties,
+      Builder_Ongoing_Projects: propertyData.builder_ongoing_projects,
+      Builder_Origin_City: propertyData.builder_origin_city,
+      Builder_Operating_Locations: propertyData.builder_operating_locations,
+      Previous_Complaints_on_Builder: propertyData.previous_complaints_on_builder,
+      Complaint_Details: propertyData.complaint_details,
+      Construction_Material: propertyData.construction_material,
+      After_agreement_of_sale_what_is_payout_time_period: propertyData.after_agreement_of_sale_what_is_payout_time_period,
+      Is_Lead_Registration_Required_Before_Site_Visit: propertyData.is_lead_registration_required_before_site_visit,
+      Turnaround_Time_for_Lead_Acknowledgement: propertyData.turnaround_time_for_lead_acknowledgement,
+      Is_There_Validity_Period_for_Registered_Lead: propertyData.is_there_validity_period_for_registered_lead,
+      Validity_Period_Value: propertyData.validity_period_value,
+      Person_to_Confirm_Registration: propertyData.person_to_confirm_registration,
+      Notes_Comments_on_Lead_Registration_Workflow: propertyData.notes_comments_on_lead_registration_workflow,
+      Accepted_Modes_of_Lead_Registration: propertyData.accepted_modes_of_lead_registration,
+      POC_Name: propertyData.poc_name,
+      POC_Contact: propertyData.poc_contact,
+      POC_Role: propertyData.poc_role,
+      POC_CP: propertyData.cp || false,
+      Contact: propertyData.contact,
+      ProjectBrochure: propertyData.projectbrochure,
+      Pricesheet_Link: propertyData.pricesheet_link_1,
+      Project_Status: propertyData.project_status || null,
+      City: propertyData.city || null,
+      State: propertyData.state || null,
+      Google_Place_ID: propertyData.google_place_id || null,
+      Google_Place_Name: propertyData.google_place_name || null,
+      Google_Place_Address: propertyData.google_place_address || null,
+      Google_Place_Location: propertyData.google_place_location || null,
+      Google_Place_Rating: propertyData.google_place_rating || null,
+      Google_Place_User_Ratings_Total: propertyData.google_place_user_ratings_total || null,
+      Google_Maps_URL: propertyData.google_maps_url || null,
+      Mobile_Google_Map_URL: propertyData.mobile_google_map_url || null,
+      Connectivity_Score: propertyData.connectivity_score || null,
+      Amenities_Score: propertyData.amenities_score || null,
+      GRID_Score: propertyData.GRID_Score || null,
+      Hospitals_Count: propertyData.hospitals_count || null,
+      Shopping_Malls_Count: propertyData.shopping_malls_count || null,
+      Schools_Count: propertyData.schools_count || null,
+      Restaurants_Count: propertyData.restaurants_count || null,
+      configurations: configurations
+    };
+  };
+
+  // Get property details - First check Unverified_Properties, then unified_data
   app.get('/api/verified/property-details', async (req, res) => {
     const { projectName, reraNumber } = req.query;
 
@@ -541,26 +662,121 @@ export async function registerRoutes(
     }
 
     try {
-      let query = supabase.from('unified_data').select('*');
-      
-      if (reraNumber) {
-        query = query.eq('rera_number', reraNumber);
-      } else if (projectName) {
-        query = query.ilike('projectname', `%${projectName}%`);
+      console.log(`Fetching property details for: ${projectName || reraNumber}`);
+
+      // Step 1: First search in Unverified_Properties table
+      console.log('Step 1: Searching in Unverified_Properties table...');
+      let unverifiedQuery = supabase.from('Unverified_Properties').select('*');
+
+      if (projectName) {
+        unverifiedQuery = unverifiedQuery.eq('projectname', projectName);
+      } else if (reraNumber) {
+        unverifiedQuery = unverifiedQuery.ilike('rera_number', String(reraNumber));
       }
 
-      const { data, error } = await query.limit(1).maybeSingle();
+      const { data: unverifiedData, error: unverifiedError } = await unverifiedQuery.maybeSingle();
+
+      if (unverifiedError && unverifiedError.code !== 'PGRST116') {
+        console.error('Error querying Unverified_Properties:', unverifiedError);
+      }
+
+      // If found in Unverified_Properties, return that data
+      if (unverifiedData && !unverifiedError) {
+        console.log(`Found property in Unverified_Properties: ${unverifiedData.projectname || unverifiedData.rera_number}`);
+        const mappedData = mapPropertyToFrontendFormat(unverifiedData);
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Property details fetched successfully from Unverified_Properties',
+          data: mappedData,
+          source: 'Unverified_Properties'
+        });
+      }
+
+      console.log('Property not found in Unverified_Properties, searching in unified_data...');
+
+      // Step 2: If not found in Unverified_Properties, search in unified_data table
+      let query = supabase.from('unified_data').select('*');
+      
+      if (projectName) {
+        query = query.eq('projectname', projectName);
+      } else if (reraNumber) {
+        query = query.ilike('rera_number', String(reraNumber));
+      }
+
+      // Fetch all rows for the project (some projects have multiple rows for different configurations)
+      const { data, error } = await query;
 
       if (error) {
-        console.error('Error fetching property details:', error);
+        console.error('Error fetching from unified_data:', error);
         return res.status(500).json({ success: false, message: 'Database error' });
       }
 
-      if (!data) {
+      if (!data || data.length === 0) {
+        console.log('Property not found in either Unverified_Properties or unified_data table');
         return res.status(404).json({ success: false, message: 'Property not found' });
       }
 
-      res.status(200).json({ success: true, data });
+      const propertyData = data[0];
+      console.log(`Found property in unified_data: ${propertyData.projectname} (${data.length} row(s) found)`);
+
+      // Handle configurations from multiple rows if needed
+      let configurations: any[] = [];
+      const isVillaProject = propertyData.project_type === 'Villa';
+      
+      if (propertyData.configurations && Array.isArray(propertyData.configurations) && propertyData.configurations.length > 0) {
+        configurations = propertyData.configurations.map((config: any) => {
+          const transformedConfig: any = {
+            type: config.type,
+            facing: config.facing || null,
+            No_of_car_Parking: config.No_of_car_Parking || null,
+            uds: config.uds !== undefined && config.uds !== null ? config.uds : null,
+            configsoldoutstatus: config.configsoldoutstatus || config.configSoldOutStatus || 'active'
+          };
+          
+          if (isVillaProject) {
+            transformedConfig.sizeSqFt = config.sizeSqFt || null;
+            transformedConfig.sizeSqYd = config.sizeSqYd || null;
+          } else {
+            transformedConfig.sizeRange = config.sizeRange || config.sizeSqFt || null;
+            transformedConfig.sizeUnit = config.sizeUnit || 'Sq ft';
+          }
+          
+          return transformedConfig;
+        });
+      } else if (data.length > 0) {
+        configurations = data
+          .filter((row: any) => row.bhk || row.sqfeet || row.sqyard)
+          .map((row: any) => {
+            const config: any = {
+              type: row.bhk ? `${row.bhk} BHK` : null,
+              facing: row.facing || null,
+              No_of_car_Parking: row.no_of_car_parkings ? parseInt(row.no_of_car_parkings) : null,
+              configsoldoutstatus: row.configsoldoutstatus || 'active'
+            };
+            
+            if (isVillaProject) {
+              config.sizeSqFt = row.sqfeet ? parseFloat(row.sqfeet) : null;
+              config.sizeSqYd = row.sqyard ? parseFloat(row.sqyard) : null;
+            } else {
+              config.sizeRange = row.sqfeet ? parseFloat(row.sqfeet) : null;
+              config.sizeUnit = 'Sq ft';
+            }
+            
+            return config;
+          })
+          .filter((config: any) => config.type !== null);
+      }
+
+      const mappedData = mapPropertyToFrontendFormat(propertyData);
+      mappedData.configurations = configurations;
+
+      res.status(200).json({ 
+        success: true, 
+        message: 'Property details fetched successfully from unified_data',
+        data: mappedData,
+        source: 'unified_data'
+      });
     } catch (error) {
       console.error('Error:', error);
       res.status(500).json({ success: false, message: 'Server error' });
