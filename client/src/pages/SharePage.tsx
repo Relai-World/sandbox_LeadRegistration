@@ -218,6 +218,41 @@ const SharePage = () => {
     return rows;
   };
 
+  const handleBookSiteVisit = (projectName: string) => {
+    const message = `Hi, I would like to book a site visit for ${projectName}. My details: ${data?.leadName} - ${data?.leadMobile}`;
+    window.open(`https://wa.me/919876543210?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const renderTableButtons = () => (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full border-collapse">
+        <tbody>
+          <tr>
+            <td className="p-2 min-w-[150px]"></td>
+            {data.properties.map((property, idx) => {
+              const projectName = getValue(property, 'projectname') || `Property ${idx + 1}`;
+              return (
+                <td key={idx} className="p-2 min-w-[180px]">
+                  <Button 
+                    size="sm"
+                    variant="outline"
+                    className="w-full border-2"
+                    style={{ borderColor: '#3350a3', color: '#3350a3' }}
+                    data-testid={`button-table-book-visit-${idx}`}
+                    onClick={() => handleBookSiteVisit(projectName)}
+                  >
+                    <SiWhatsapp className="h-3 w-3 mr-1" />
+                    Book Site Visit
+                  </Button>
+                </td>
+              );
+            })}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+
   const renderConfigurationTable = (title: string, icon: React.ReactNode) => {
     const rows = getConfigurationRows();
     if (rows.length === 0) return null;
@@ -256,6 +291,7 @@ const SharePage = () => {
             </tbody>
           </table>
         </div>
+        {renderTableButtons()}
       </div>
     );
   };
@@ -303,7 +339,7 @@ const SharePage = () => {
     return rows;
   };
 
-  const renderComparisonTable = (title: string, keys: string[], icon: React.ReactNode) => {
+  const renderComparisonTable = (title: string, keys: string[], icon: React.ReactNode, showButtons: boolean = true) => {
     const rows = getComparisonRows(keys);
     if (rows.length === 0) return null;
 
@@ -339,6 +375,7 @@ const SharePage = () => {
             </tbody>
           </table>
         </div>
+        {showButtons && renderTableButtons()}
       </div>
     );
   };
@@ -468,6 +505,17 @@ const SharePage = () => {
               );
             })}
           </div>
+          <div className="mt-4 flex justify-center">
+            <Button 
+              variant="outline"
+              className="bg-green-600 text-white border-green-600 hover:bg-green-700"
+              onClick={() => setFriendModalOpen(true)}
+              data-testid="button-discuss-friend-overview"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Discuss with your friend
+            </Button>
+          </div>
         </section>
 
         <Separator />
@@ -487,8 +535,17 @@ const SharePage = () => {
           {renderComparisonTable("Nearby Facilities Count", nearbyKeys, <MapPin className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           
           <div className="mt-6 p-4 bg-muted/30 rounded-lg">
-            <h4 className="text-sm font-medium mb-3 text-muted-foreground">Interested in any of these properties?</h4>
-            <div className="flex flex-wrap gap-3">
+            <h4 className="text-sm font-medium mb-3 text-muted-foreground">Need help deciding?</h4>
+            <div className="flex flex-wrap gap-3 items-center">
+              <Button 
+                variant="outline"
+                className="bg-green-600 text-white border-green-600 hover:bg-green-700"
+                onClick={() => setFriendModalOpen(true)}
+                data-testid="button-discuss-friend-comparison"
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Discuss with your friend
+              </Button>
               {data.properties.map((property, idx) => {
                 const projectName = getValue(property, 'projectname') || `Property ${idx + 1}`;
                 return (
@@ -498,12 +555,9 @@ const SharePage = () => {
                     className="border-2"
                     style={{ borderColor: '#3350a3', color: '#3350a3' }}
                     data-testid={`button-book-visit-${idx}`}
-                    onClick={() => {
-                      const message = `Hi, I would like to book a site visit for ${projectName}. My details: ${data.leadName} - ${data.leadMobile}`;
-                      window.open(`https://wa.me/919876543210?text=${encodeURIComponent(message)}`, '_blank');
-                    }}
+                    onClick={() => handleBookSiteVisit(projectName)}
                   >
-                    <Calendar className="h-4 w-4 mr-2" />
+                    <SiWhatsapp className="h-4 w-4 mr-2" />
                     Book Site Visit - {projectName.substring(0, 20)}
                   </Button>
                 );
@@ -645,6 +699,19 @@ const SharePage = () => {
               </Card>
             );
           })}
+          
+          <div className="mt-6 p-4 bg-muted/30 rounded-lg text-center">
+            <p className="text-sm text-muted-foreground mb-3">Want a second opinion on these properties?</p>
+            <Button 
+              variant="outline"
+              className="bg-green-600 text-white border-green-600 hover:bg-green-700"
+              onClick={() => setFriendModalOpen(true)}
+              data-testid="button-discuss-friend-bottom"
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Discuss with your friend
+            </Button>
+          </div>
         </section>
       </main>
 
