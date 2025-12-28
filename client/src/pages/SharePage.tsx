@@ -223,34 +223,28 @@ const SharePage = () => {
     window.open(`https://wa.me/919876543210?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  const renderTableButtons = () => (
-    <div className="mt-3 overflow-x-auto">
-      <table className="w-full border-collapse">
-        <tbody>
-          <tr>
-            <td className="p-2 min-w-[150px]"></td>
-            {data.properties.map((property, idx) => {
-              const projectName = getValue(property, 'projectname') || `Property ${idx + 1}`;
-              return (
-                <td key={idx} className="p-2 min-w-[180px]">
-                  <Button 
-                    size="sm"
-                    variant="outline"
-                    className="w-full border-2"
-                    style={{ borderColor: '#3350a3', color: '#3350a3' }}
-                    data-testid={`button-table-book-visit-${idx}`}
-                    onClick={() => handleBookSiteVisit(projectName)}
-                  >
-                    <SiWhatsapp className="h-3 w-3 mr-1" />
-                    Book Site Visit
-                  </Button>
-                </td>
-              );
-            })}
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  const renderTableButtonRow = () => (
+    <tr className="bg-muted/20">
+      <td className="p-3 font-medium text-muted-foreground border-r"></td>
+      {data.properties.map((property, idx) => {
+        const projectName = getValue(property, 'projectname') || `Property ${idx + 1}`;
+        return (
+          <td key={idx} className="p-3">
+            <Button 
+              size="sm"
+              variant="outline"
+              className="w-full border-2"
+              style={{ borderColor: '#3350a3', color: '#3350a3' }}
+              data-testid={`button-table-book-visit-${idx}`}
+              onClick={() => handleBookSiteVisit(projectName)}
+            >
+              <SiWhatsapp className="h-3 w-3 mr-1" />
+              Book Site Visit
+            </Button>
+          </td>
+        );
+      })}
+    </tr>
   );
 
   const renderConfigurationTable = (title: string, icon: React.ReactNode) => {
@@ -288,10 +282,10 @@ const SharePage = () => {
                   ))}
                 </tr>
               ))}
+              {renderTableButtonRow()}
             </tbody>
           </table>
         </div>
-        {renderTableButtons()}
       </div>
     );
   };
@@ -372,10 +366,10 @@ const SharePage = () => {
                   ))}
                 </tr>
               ))}
+              {showButtons && renderTableButtonRow()}
             </tbody>
           </table>
         </div>
-        {showButtons && renderTableButtons()}
       </div>
     );
   };
