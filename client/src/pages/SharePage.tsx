@@ -11,7 +11,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Building2, MapPin, Phone, User, Calendar, Ruler, IndianRupee, Home, CheckCircle, Loader2, Star, Car, Trees, Building, Waves, Shield, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import heroImage from "@assets/relai_hero.png";
-import watermarkImage from "@assets/relai_watermark.png";
 
 interface PropertyData {
   [key: string]: any;
@@ -263,10 +262,7 @@ const SharePage = () => {
           {icon}
           {title}
         </h3>
-        <div 
-          className="overflow-x-auto rounded-lg border table-watermark"
-          style={{ '--watermark-url': `url(${watermarkImage})` } as React.CSSProperties}
-        >
+        <div className="overflow-x-auto rounded-lg border">
           <table className="w-full border-collapse" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
             <thead>
               <tr style={{ backgroundColor: '#3350a3' }} className="text-white">
@@ -352,10 +348,7 @@ const SharePage = () => {
           {icon}
           {title}
         </h3>
-        <div 
-          className="overflow-x-auto rounded-lg border table-watermark"
-          style={{ '--watermark-url': `url(${watermarkImage})` } as React.CSSProperties}
-        >
+        <div className="overflow-x-auto rounded-lg border">
           <table className="w-full border-collapse" data-testid={`table-${title.toLowerCase().replace(/\s/g, '-')}`}>
             <thead>
               <tr style={{ backgroundColor: '#3350a3' }} className="text-white">
