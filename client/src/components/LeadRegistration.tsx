@@ -152,8 +152,11 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   const [leadMobile, setLeadMobile] = useState('');
   const { toast } = useToast();
 
-  // No pagination needed - loading all leads at once
+  // Server-side pagination
   const [totalLeads, setTotalLeads] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const ITEMS_PER_PAGE = 50;
 
   const [formData, setFormData] = useState({
     client_mobile: '',
@@ -500,94 +503,62 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
     }
   };
 
-  // Fetch all leads using batching to handle API limits
-  const fetchLeads = async () => {
+  // Fetch leads with server-side pagination (only one page at a time)
+  const fetchLeads = async (page: number = 1, search: string = '') => {
     setLoading(true);
     setError(null);
-    const BATCH_SIZE = 50; // Reduced to 50 to prevent Netlify Function timeouts (26s limit)
 
     try {
-      console.log('Fetching all leads...');
-      let allLeads: ClientRequirement[] = [];
-      let currentPage = 1;
-      let hasMore = true;
-
-      // Helper to fetch a single page
-      const fetchPage = async (page: number) => {
-        const response = await fetch(`${API_BASE_URL}/api/lead-registration?page=${page}&limit=${BATCH_SIZE}`, {
-          headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (!response.ok) {
-          // Retry once on failure
-          console.log(`Error fetching page ${page}, retrying...`);
-          await new Promise(r => setTimeout(r, 1000));
-          const retryResponse = await fetch(`${API_BASE_URL}/api/lead-registration?page=${page}&limit=${BATCH_SIZE}`, {
-            headers: { 'Content-Type': 'application/json' }
-          });
-          if (!retryResponse.ok) {
-            throw new Error(`Failed to fetch page ${page}: ${retryResponse.statusText}`);
-          }
-          return retryResponse.json();
-        }
-        return response.json();
-      };
-
-      // Initial fetch to get total count
-      const firstPageData = await fetchPage(1);
-
-      if (firstPageData.data) {
-        allLeads = [...firstPageData.data];
+      console.log(`Fetching leads page ${page}...`);
+      
+      // Build query params
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: ITEMS_PER_PAGE.toString()
+      });
+      if (search.trim()) {
+        params.append('search', search.trim());
       }
 
-      const totalPages = firstPageData.pagination?.totalPages || 1;
-      const totalCount = firstPageData.pagination?.total || 0;
-      console.log(`Total leads available: ${totalCount}, Total pages to fetch: ${totalPages}`);
+      const response = await fetch(`${API_BASE_URL}/api/lead-registration?${params}`, {
+        headers: { 'Content-Type': 'application/json' }
+      });
 
-      // Sequentially fetch remaining pages
-      for (let page = 2; page <= totalPages; page++) {
-        console.log(`Fetching page ${page}/${totalPages}...`);
-        const pageData = await fetchPage(page);
-        if (pageData.data) {
-          allLeads = [...allLeads, ...pageData.data];
-        }
-        // Small delay to be gentle on the server
-        await new Promise(resolve => setTimeout(resolve, 100));
+      if (!response.ok) {
+        throw new Error(`Failed to fetch leads: ${response.statusText}`);
       }
 
-      setLeads(allLeads);
-      setTotalLeads(allLeads.length);
-      console.log(`✅ Fetch complete! Total leads loaded: ${allLeads.length}`);
+      const data = await response.json();
+      const pageLeads = data.data || [];
+      
+      setLeads(pageLeads);
+      setTotalLeads(data.pagination?.total || 0);
+      setTotalPages(data.pagination?.totalPages || 1);
+      setCurrentPage(page);
+      
+      console.log(`✅ Loaded ${pageLeads.length} leads (page ${page} of ${data.pagination?.totalPages})`);
 
-      // Fetch related data
-      const allReraNumbers: string[] = [];
-      const allMobileNumbers: string[] = [];
-      allLeads.forEach((lead: ClientRequirement) => {
-        if (lead.client_mobile && !allMobileNumbers.includes(lead.client_mobile)) {
-          allMobileNumbers.push(lead.client_mobile);
+      // Fetch related data for current page only
+      const reraNumbers: string[] = [];
+      const mobileNumbers: string[] = [];
+      pageLeads.forEach((lead: ClientRequirement) => {
+        if (lead.client_mobile && !mobileNumbers.includes(lead.client_mobile)) {
+          mobileNumbers.push(lead.client_mobile);
         }
         const shortlisted = lead.shortlisted_properties ?? [];
         shortlisted.forEach((prop: ShortlistedProperty) => {
           const reraNumber = prop.property?.rera_number || prop.rera_number;
-          if (reraNumber && !allReraNumbers.includes(reraNumber)) {
-            allReraNumbers.push(reraNumber);
+          if (reraNumber && !reraNumbers.includes(reraNumber)) {
+            reraNumbers.push(reraNumber);
           }
         });
       });
 
-      if (allReraNumbers.length > 0) {
-        // Batch fetch POC details
-        const chunkSize = 50;
-        for (let i = 0; i < allReraNumbers.length; i += chunkSize) {
-          fetchPocDetails(allReraNumbers.slice(i, i + chunkSize));
-        }
+      if (reraNumbers.length > 0) {
+        fetchPocDetails(reraNumbers);
       }
-      if (allMobileNumbers.length > 0) {
-        // Batch fetch Zoho leads
-        const chunkSize = 50;
-        for (let i = 0; i < allMobileNumbers.length; i += chunkSize) {
-          fetchZohoLeadNames(allMobileNumbers.slice(i, i + chunkSize));
-        }
+      if (mobileNumbers.length > 0) {
+        fetchZohoLeadNames(mobileNumbers);
       }
 
     } catch (err: any) {
@@ -600,8 +571,21 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   };
 
   useEffect(() => {
-    fetchLeads();
+    fetchLeads(1, searchTerm);
   }, []);
+
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      fetchLeads(newPage, searchTerm);
+    }
+  };
+
+  // Handle search with debounce
+  const handleSearch = () => {
+    setCurrentPage(1);
+    fetchLeads(1, searchTerm);
+  };
 
 
 
@@ -668,7 +652,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
 
       alert(editingLead ? 'Lead updated successfully!' : 'Lead created successfully!');
       resetForm();
-      fetchLeads(); // Refresh all leads
+      fetchLeads(currentPage, searchTerm); // Refresh current page
     } catch (err: any) {
       alert(`Error: ${err.message}`);
       console.error('Error saving lead:', err);
@@ -690,7 +674,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       }
 
       alert('Lead deleted successfully!');
-      fetchLeads(); // Refresh all leads
+      fetchLeads(currentPage, searchTerm); // Refresh current page
     } catch (err: any) {
       alert(`Error: ${err.message}`);
       console.error('Error deleting lead:', err);
@@ -737,14 +721,8 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
     setIsCreating(false);
   };
 
-  const filteredLeads = leads.filter(lead => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      lead.client_mobile.includes(searchTerm) ||
-      (lead.requirement_name && lead.requirement_name.toLowerCase().includes(searchLower)) ||
-      (lead.preferences?.location && lead.preferences.location.toLowerCase().includes(searchLower))
-    );
-  });
+  // Server-side search - leads are already filtered
+  const filteredLeads = leads;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -1072,13 +1050,17 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
               className="pl-10 w-56 h-9"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              data-testid="input-search-leads"
             />
           </div>
-          <Button variant="outline" size="sm" onClick={() => fetchLeads()} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+          <Button variant="outline" size="sm" onClick={handleSearch} disabled={loading} data-testid="button-search">
+            <Search className="w-4 h-4" />
           </Button>
-          <Button size="sm" onClick={() => setIsCreating(true)} className="bg-blue-600 hover:bg-blue-700">
+          <Button variant="outline" size="sm" onClick={() => fetchLeads(currentPage, searchTerm)} disabled={loading} data-testid="button-refresh">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button size="sm" onClick={() => setIsCreating(true)} className="bg-blue-600 hover:bg-blue-700" data-testid="button-new-lead">
             <Plus className="w-4 h-4 mr-1" />
             New Lead
           </Button>
@@ -1093,7 +1075,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       ) : error ? (
         <div className="text-center py-16">
           <p className="text-red-500 mb-3">{error}</p>
-          <Button onClick={() => fetchLeads()} variant="outline">
+          <Button onClick={() => fetchLeads(1, searchTerm)} variant="outline">
             Try Again
           </Button>
         </div>
@@ -1230,30 +1212,65 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
               </table>
             </div>
           </CardContent>
-          <div className="px-4 py-3 border-t bg-gray-50 flex items-center justify-between">
-            <div className="text-sm text-gray-600 font-medium">
-              {selectedPropertyKeys.size > 0 ? (
+          <div className="px-4 py-3 border-t bg-gray-50 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-gray-600 font-medium flex items-center gap-3">
+              <span>Page {currentPage} of {totalPages} ({totalLeads} total leads)</span>
+              {selectedPropertyKeys.size > 0 && (
                 <span className="flex items-center gap-2">
                   <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">
                     {selectedPropertyKeys.size} Selected
                   </span>
-                  {selectedPropertyKeys.size < 2
-                    ? "(Select 2-5 properties for report)"
-                    : `(Ready for report - Max 5)`}
+                  {selectedPropertyKeys.size < 2 ? "(Select 2-5)" : "(Ready)"}
                 </span>
-              ) : (
-                `Showing ${filteredLeads.length} leads`
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(1)}
+                  disabled={currentPage === 1 || loading}
+                  data-testid="button-first-page"
+                >
+                  First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1 || loading}
+                  data-testid="button-prev-page"
+                >
+                  Prev
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages || loading}
+                  data-testid="button-next-page"
+                >
+                  Next
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(totalPages)}
+                  disabled={currentPage === totalPages || loading}
+                  data-testid="button-last-page"
+                >
+                  Last
+                </Button>
+              </div>
               {selectedPropertyKeys.size > 0 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setSelectedPropertyKeys(new Set())}
-                  className="text-gray-500 hover:text-red-600"
+                  className="text-gray-500"
                 >
-                  Clear Selection
+                  Clear
                 </Button>
               )}
               <Button
@@ -1263,7 +1280,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                 size="sm"
               >
                 <FileText className="w-4 h-4 mr-2" />
-                Download Comparison Report ({selectedPropertyKeys.size})
+                Report ({selectedPropertyKeys.size})
               </Button>
             </div>
           </div>

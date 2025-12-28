@@ -166,7 +166,7 @@ export async function registerRoutes(
 
   // === LEAD REGISTRATION ROUTES (Frontend calls /api/lead-registration/*) ===
 
-  // Get all leads with pagination
+  // Get all leads with pagination and search
   app.get('/api/lead-registration', async (req, res) => {
     if (!supabase) {
       return res.status(503).json({ message: 'Database not available' });
@@ -176,10 +176,20 @@ export async function registerRoutes(
       const page = parseInt(req.query.page as string) || 1;
       const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
       const offset = (page - 1) * limit;
+      const search = (req.query.search as string)?.trim() || '';
 
-      const { data: leads, error, count } = await supabase
+      // Build query with optional search filter
+      let query = supabase
         .from('client_Requirements')
-        .select('*', { count: 'exact' })
+        .select('*', { count: 'exact' });
+
+      // Apply search filter if provided
+      if (search) {
+        // Search by client_mobile or client_name
+        query = query.or(`client_mobile.ilike.%${search}%,client_name.ilike.%${search}%,requirement_name.ilike.%${search}%`);
+      }
+
+      const { data: leads, error, count } = await query
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
