@@ -468,14 +468,31 @@ export async function registerRoutes(
     }
 
     try {
-      const { data, error } = await supabase
-        .from('unified_data')
-        .select('projectname, buildername, rera_number, city, state')
-        .limit(1000);
+      // Fetch all records to get complete dropdown values
+      // Use pagination to fetch all data
+      const allData: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        console.error('Error fetching dropdown values:', error);
-        return res.status(500).json({ success: false, message: 'Database error' });
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('unified_data')
+          .select('projectname, buildername, rera_number, city, state, areaname')
+          .range(from, from + batchSize - 1);
+
+        if (error) {
+          console.error('Error fetching dropdown values:', error);
+          return res.status(500).json({ success: false, message: 'Database error' });
+        }
+
+        if (data && data.length > 0) {
+          allData.push(...data);
+          from += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
       }
 
       const projectNamesSet = new Set<string>();
@@ -483,13 +500,15 @@ export async function registerRoutes(
       const reraNumbersSet = new Set<string>();
       const citiesSet = new Set<string>();
       const statesSet = new Set<string>();
+      const areasSet = new Set<string>();
 
-      (data || []).forEach((item: any) => {
+      allData.forEach((item: any) => {
         if (item.projectname) projectNamesSet.add(String(item.projectname).trim());
         if (item.buildername) builderNamesSet.add(String(item.buildername).trim());
         if (item.rera_number) reraNumbersSet.add(String(item.rera_number).trim());
         if (item.city) citiesSet.add(String(item.city).trim());
         if (item.state) statesSet.add(String(item.state).trim());
+        if (item.areaname) areasSet.add(String(item.areaname).trim());
       });
 
       res.status(200).json({
@@ -499,7 +518,8 @@ export async function registerRoutes(
           builderNames: Array.from(builderNamesSet).sort(),
           reraNumbers: Array.from(reraNumbersSet).sort(),
           cities: Array.from(citiesSet).sort(),
-          states: Array.from(statesSet).sort()
+          states: Array.from(statesSet).sort(),
+          areas: Array.from(areasSet).sort()
         }
       });
     } catch (error) {
