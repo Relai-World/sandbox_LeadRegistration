@@ -153,7 +153,17 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   const [leadName, setLeadName] = useState('');
   const [leadMobile, setLeadMobile] = useState('');
   const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
+  const [leadStatuses, setLeadStatuses] = useState<Record<number, string>>({});
   const { toast } = useToast();
+
+  const STATUS_OPTIONS = [
+    { value: 'new', label: 'New', color: 'bg-gray-100 text-gray-700' },
+    { value: 'in_progress', label: 'In Progress', color: 'bg-blue-100 text-blue-700' },
+    { value: 'site_visit_scheduled', label: 'Site Visit Scheduled', color: 'bg-purple-100 text-purple-700' },
+    { value: 'negotiation', label: 'Negotiation', color: 'bg-yellow-100 text-yellow-700' },
+    { value: 'done', label: 'Done', color: 'bg-green-100 text-green-700' },
+    { value: 'lost', label: 'Lost', color: 'bg-red-100 text-red-700' },
+  ];
 
   const toggleLeadExpansion = (leadId: number) => {
     setExpandedLeads(prev => {
@@ -165,6 +175,11 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       }
       return newSet;
     });
+  };
+
+  const updateLeadStatus = (leadId: number, status: string) => {
+    setLeadStatuses(prev => ({ ...prev, [leadId]: status }));
+    // TODO: Save to backend when API is ready
   };
 
   // Server-side pagination
@@ -1105,15 +1120,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Lead Name</th>
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Mobile</th>
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Properties</th>
-                    <th className="text-center px-2 py-2 w-10">
-                      <input
-                        type="checkbox"
-                        checked={selectedPropertyKeys.size === getAllPropertyKeys().length && getAllPropertyKeys().length > 0}
-                        onChange={toggleSelectAll}
-                        className="w-4 h-4 rounded border-gray-300"
-                        data-testid="checkbox-select-all"
-                      />
-                    </th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1163,31 +1170,21 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                               {shortlistedList.length} {shortlistedList.length === 1 ? 'property' : 'properties'}
                             </span>
                           </td>
-                          <td className="text-center px-2 py-3" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={shortlistedList.every((_, propIndex) => {
-                                const property = shortlistedList[propIndex];
-                                const reraNumber = property.property?.rera_number || property.rera_number;
-                                const projectName = property.property?.projectname || property.projectname || property.propertyName;
-                                const propertyKey = `${lead.id}-${reraNumber || projectName || propIndex}`;
-                                return selectedPropertyKeys.has(propertyKey);
-                              })}
-                              onChange={(e) => {
-                                shortlistedList.forEach((property, propIndex) => {
-                                  const reraNumber = property.property?.rera_number || property.rera_number;
-                                  const projectName = property.property?.projectname || property.projectname || property.propertyName;
-                                  const propertyKey = `${lead.id}-${reraNumber || projectName || propIndex}`;
-                                  if (e.target.checked && !selectedPropertyKeys.has(propertyKey)) {
-                                    togglePropertySelection(propertyKey, lead.id);
-                                  } else if (!e.target.checked && selectedPropertyKeys.has(propertyKey)) {
-                                    togglePropertySelection(propertyKey, lead.id);
-                                  }
-                                });
-                              }}
-                              className="w-4 h-4 rounded border-gray-300"
-                              data-testid={`checkbox-lead-${lead.id}`}
-                            />
+                          <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={leadStatuses[lead.id] || 'new'}
+                              onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
+                              className={`text-xs font-medium px-2 py-1 rounded-md border-0 cursor-pointer ${
+                                STATUS_OPTIONS.find(s => s.value === (leadStatuses[lead.id] || 'new'))?.color || 'bg-gray-100 text-gray-700'
+                              }`}
+                              data-testid={`select-status-${lead.id}`}
+                            >
+                              {STATUS_OPTIONS.map(option => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
                           </td>
                         </tr>
                         {isExpanded && (
