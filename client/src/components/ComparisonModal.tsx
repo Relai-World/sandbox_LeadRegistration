@@ -86,6 +86,57 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
     }
   };
 
+  // Fields to exclude from unified data display
+  const excludedUnifiedFields = new Set([
+    'google_place_id',
+    'google_place_name', 
+    'google_place_address',
+    'google_place_location',
+    'google_place_rating',
+    'google_place_user_ratings_total',
+    'google_maps_location',
+    'google_place_raw_data',
+    'hospitals_count',
+    'shopping_malls_count',
+    'schools_count',
+    'restaurants_count',
+    'restaurants_above_4_stars_count',
+    'supermarkets_count',
+    'it_offices_count',
+    'metro_stations_count',
+    'railway_stations_count',
+    'nearest_hospitals',
+    'nearest_shopping_malls',
+    'nearest_schools',
+    'nearest_restaurants',
+    'high_rated_restaurants',
+    'nearest_supermarkets',
+    'nearest_it_offices',
+    'nearest_metro_station',
+    'nearest_railway_station',
+    'nearest_orr_access',
+    'connectivity_score',
+    'amenities_score',
+    'amenities_raw_data',
+    'amenities_updated_at',
+    'mobile_google_map_url',
+    'GRID_Score',
+    'isavailable',
+    'configsoldoutstatus',
+  ]);
+
+  // Filter out excluded fields from unified data
+  const filterUnifiedData = (data: any) => {
+    if (!data) return null;
+    const filtered: any = {};
+    Object.entries(data).forEach(([key, value]) => {
+      if (!excludedUnifiedFields.has(key)) {
+        filtered[key] = value;
+      }
+    });
+    return filtered;
+  };
+
   const formatJSON = (data: any) => {
     if (!data) return '';
     return JSON.stringify(data, null, 2);
@@ -232,7 +283,9 @@ export const ComparisonModal: React.FC<ComparisonModalProps> = ({
   const renderUnifiedHighlightedJSON = () => {
     if (!unifiedData || unifiedLoading || unifiedError) return null;
     
-    const highlightedLines = formatUnifiedJSONWithHighlighting(unifiedData, verifiedData);
+    // Filter out excluded fields before displaying
+    const filteredUnifiedData = filterUnifiedData(unifiedData);
+    const highlightedLines = formatUnifiedJSONWithHighlighting(filteredUnifiedData, verifiedData);
     
     return (
       <div className="text-xs font-mono whitespace-pre-wrap break-words">
