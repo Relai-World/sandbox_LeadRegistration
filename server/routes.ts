@@ -1331,6 +1331,64 @@ export async function registerRoutes(
     }
   });
 
+  // Get property from unified/master table by project name
+  app.get('/api/admin/properties/mongodb/:projectName', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const { projectName } = req.params;
+      
+      // Search in the unified/master properties table
+      const { data, error } = await supabase
+        .from('unified')
+        .select('*')
+        .ilike('projectname', `%${projectName}%`)
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching unified data:', error);
+        return res.status(500).json({ message: 'Database error', success: false });
+      }
+
+      res.status(200).json({ success: true, data: data || null });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error', success: false });
+    }
+  });
+
+  // Get property from verified/onboarded table by project name
+  app.get('/api/admin/properties/verified/:projectName', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const { projectName } = req.params;
+      
+      // Search in the Unverified_Properties table (agent submissions)
+      const { data, error } = await supabase
+        .from('Unverified_Properties')
+        .select('*')
+        .ilike('projectname', `%${projectName}%`)
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching verified data:', error);
+        return res.status(500).json({ message: 'Database error', success: false });
+      }
+
+      res.status(200).json({ success: true, data: data || null });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error', success: false });
+    }
+  });
+
   // Verify property (admin action)
   app.post('/api/admin/properties/:id/verify', async (req, res) => {
     if (!supabase) {
