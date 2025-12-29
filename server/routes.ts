@@ -1342,7 +1342,7 @@ export async function registerRoutes(
       
       // Search in the unified/master properties table
       const { data, error } = await supabase
-        .from('unified')
+        .from('unified_data')
         .select('*')
         .ilike('projectname', `%${projectName}%`)
         .limit(1)
