@@ -4,6 +4,13 @@
 
 [functions]
   directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["vite", "@vitejs/plugin-react", "@tailwindcss/vite", "lightningcss", "@babel/core"]
+
+[functions.api]
+  node_bundler = "esbuild"
+  format = "esm"
+  included_files = ["dist/**"]
 
 [[redirects]]
   from = "/api/*"

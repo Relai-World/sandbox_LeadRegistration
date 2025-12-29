@@ -79,15 +79,15 @@ const httpServer = createServer(app);
     }
   });
 
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV === "production" && !process.env.NETLIFY) {
     serveStatic(app);
-  } else {
+  } else if (process.env.NODE_ENV !== "production") {
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
 
-  // ONLY listen if we are not running on Vercel
-  if (!process.env.VERCEL) {
+  // ONLY listen if we are not running on Vercel or Netlify
+  if (!process.env.VERCEL && !process.env.NETLIFY) {
     const port = parseInt(process.env.PORT || "5000", 10);
     httpServer.listen(
       {
