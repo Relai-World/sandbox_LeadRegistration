@@ -1,0 +1,44 @@
+Uncaught TypeError: Cannot read properties of undefined (reading 'length')
+    at AdminAllProjects (AdminAllProjects.tsx:284:80)
+    at renderWithHooks (chunk-LPF6KSF2.js?v=b4604c0c:11596:26)
+    at updateFunctionComponent (chunk-LPF6KSF2.js?v=b4604c0c:14630:28)
+    at beginWork (chunk-LPF6KSF2.js?v=b4604c0c:15972:22)
+    at HTMLUnknownElement.callCallback2 (chunk-LPF6KSF2.js?v=b4604c0c:3680:22)
+    at Object.invokeGuardedCallbackDev (chunk-LPF6KSF2.js?v=b4604c0c:3705:24)
+    at invokeGuardedCallback (chunk-LPF6KSF2.js?v=b4604c0c:3739:39)
+    at beginWork$1 (chunk-LPF6KSF2.js?v=b4604c0c:19818:15)
+    at performUnitOfWork (chunk-LPF6KSF2.js?v=b4604c0c:19251:20)
+    at workLoopSync (chunk-LPF6KSF2.js?v=b4604c0c:19190:13)Understand this error
+chunk-LPF6KSF2.js?v=b4604c0c:14080 The above error occurred in the <AdminAllProjects> component:
+
+    at AdminAllProjects (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/src/components/AdminAllProjects.tsx:35:36)
+    at div
+    at div
+    at main
+    at div
+    at AdminDashboard (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/src/pages/AdminDashboard.tsx:30:27)
+    at AdminIndex (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/src/pages/AdminIndex.tsx:23:46)
+    at RenderedRoute (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-router-dom.js?v=b4604c0c:6264:26)
+    at Routes (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-router-dom.js?v=b4604c0c:7107:3)
+    at AppRoutes (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/src/App.tsx:39:41)
+    at Router (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-router-dom.js?v=b4604c0c:7048:13)
+    at BrowserRouter (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/react-router-dom.js?v=b4604c0c:10154:3)
+    at Provider (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UFCWBHCM.js?v=b4604c0c:37:15)
+    at TooltipProvider (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=b4604c0c:61:5)
+    at QueryClientProvider (https://73d31795-9216-43e5-8212-eac61377ea0b-00-ki7vmmx7ytq0.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=b4604c0c:2747:3)
+    at App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-LPF6KSF2.js?v=b4604c0c:14080Understand this error
+chunk-LPF6KSF2.js?v=b4604c0c:19466 Uncaught TypeError: Cannot read properties of undefined (reading 'length')
+    at AdminAllProjects (AdminAllProjects.tsx:284:80)
+    at renderWithHooks (chunk-LPF6KSF2.js?v=b4604c0c:11596:26)
+    at updateFunctionComponent (chunk-LPF6KSF2.js?v=b4604c0c:14630:28)
+    at beginWork (chunk-LPF6KSF2.js?v=b4604c0c:15972:22)
+    at beginWork$1 (chunk-LPF6KSF2.js?v=b4604c0c:19806:22)
+    at performUnitOfWork (chunk-LPF6KSF2.js?v=b4604c0c:19251:20)
+    at workLoopSync (chunk-LPF6KSF2.js?v=b4604c0c:19190:13)
+    at renderRootSync (chunk-LPF6KSF2.js?v=b4604c0c:19169:15)
+    at recoverFromConcurrentError (chunk-LPF6KSF2.js?v=b4604c0c:18786:28)
+    at performConcurrentWorkOnRoot (chunk-LPF6KSF2.js?v=b4604c0c:18734:30)Understand this error

@@ -63,10 +63,10 @@ export const AdminAllProjects: React.FC<AdminAllProjectsProps> = ({ adminUser })
   const currentUser = adminUser || user;
 
   // Helper to get auth headers
-  const getAuthHeaders = () => {
+  const getAuthHeaders = (): Record<string, string> => {
     if (!currentUser?.email || !currentUser?.id) {
       console.error('Missing user authentication data', { currentUser });
-      return {};
+      return { 'Content-Type': 'application/json' };
     }
     return {
       'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ export const AdminAllProjects: React.FC<AdminAllProjectsProps> = ({ adminUser })
       const data = await response.json();
       
       if (data.success) {
-        setAgentEmails(data.emails);
+        setAgentEmails(data.emails || []);
       }
     } catch (error) {
       console.error('Error fetching agent emails:', error);
@@ -126,7 +126,30 @@ export const AdminAllProjects: React.FC<AdminAllProjectsProps> = ({ adminUser })
       const data = await response.json();
       
       if (data.success) {
-        setProjects(data.data);
+        // Map lowercase Supabase field names to expected CamelCase format
+        const mappedProjects = (data.data || []).map((p: any) => ({
+          _id: p.id || p._id,
+          ProjectName: p.projectname || p.ProjectName || '',
+          BuilderName: p.buildername || p.BuilderName || '',
+          RERA_Number: p.rera_number || p.RERA_Number || '',
+          UserEmail: p.useremail || p.UserEmail || '',
+          status: p.status || 'Submitted',
+          createdAt: p.createdat || p.createdAt || '',
+          updatedAt: p.updatedat || p.updatedAt || '',
+          ProjectType: p.project_type || p.ProjectType || '',
+          Number_of_Floors: p.number_of_floors || p.Number_of_Floors || 0,
+          Flats_Per_Floor: p.flats_per_floor || p.Flats_Per_Floor || 0,
+          Possession_Date: p.possession_date || p.Possession_Date || null,
+          Open_Space: p.open_space || p.Open_Space || '',
+          Carpet_Area_Percentage: p.carpet_area_percentage || p.Carpet_Area_Percentage || '',
+          Floor_to_Ceiling_Height: p.floor_to_ceiling_height || p.Floor_to_Ceiling_Height || '',
+          Commission_Percentage: p.commission_percentage || p.Commission_Percentage || '',
+          POC_Name: p.poc_name || p.POC_Name || '',
+          POC_Contact: p.poc_contact || p.POC_Contact || 0,
+          POC_Role: p.poc_role || p.POC_Role || '',
+          configurations: p.configurations || [],
+        }));
+        setProjects(mappedProjects);
       } else {
         toast({
           title: 'Error',

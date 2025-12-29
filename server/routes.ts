@@ -1324,7 +1324,7 @@ export async function registerRoutes(
       }
 
       const emailsSet = new Set((data || []).map((d: any) => d.useremail).filter(Boolean));
-      res.status(200).json({ success: true, data: Array.from(emailsSet).sort() });
+      res.status(200).json({ success: true, emails: Array.from(emailsSet).sort() });
     } catch (error) {
       console.error('Error:', error);
       res.status(500).json({ message: 'Server error' });
