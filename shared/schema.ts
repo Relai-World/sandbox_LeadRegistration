@@ -2,7 +2,8 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar } fr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./models/auth";
-
+import { config } from "dotenv";
+config();
 export * from "./models/auth";
 
 // === TABLE DEFINITIONS ===
