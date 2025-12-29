@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { insertPropertySchema, insertLeadSchema } from "@shared/schema";
@@ -15,10 +15,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
-  // Auth setup
-  await setupAuth(app);
-  registerAuthRoutes(app);
+
+
 
   // === USER ROUTES (Original API compatibility) ===
 
@@ -135,7 +133,7 @@ export async function registerRoutes(
   });
 
   // === DRAFTS ROUTE (Frontend calls /api/properties/drafts/:email) ===
-  
+
   app.get('/api/properties/drafts/:email', async (req, res) => {
     const { email } = req.params;
 
@@ -146,7 +144,7 @@ export async function registerRoutes(
     try {
       const decodedEmail = decodeURIComponent(email);
       console.log('Fetching drafts for email:', decodedEmail);
-      
+
       const { data, error } = await supabase
         .from('Unverified_Properties')
         .select('*')
@@ -401,7 +399,7 @@ export async function registerRoutes(
 
     try {
       const decodedEmail = decodeURIComponent(email);
-      
+
       // Fetch drafts (Unverified status)
       const { data: draftsData, error: draftsError } = await supabase
         .from('Unverified_Properties')
@@ -551,7 +549,7 @@ export async function registerRoutes(
     // Handle configurations
     let configurations: any[] = [];
     const isVillaProject = propertyData.project_type === 'Villa' || propertyData.project_type === 'Villas';
-    
+
     if (propertyData.configurations && Array.isArray(propertyData.configurations) && propertyData.configurations.length > 0) {
       configurations = propertyData.configurations.map((config: any) => {
         const transformedConfig: any = {
@@ -561,7 +559,7 @@ export async function registerRoutes(
           uds: config.uds !== undefined && config.uds !== null ? config.uds : null,
           configsoldoutstatus: config.configsoldoutstatus || config.configSoldOutStatus || 'active'
         };
-        
+
         if (isVillaProject) {
           transformedConfig.sizeSqFt = config.sizeSqFt || null;
           transformedConfig.sizeSqYd = config.sizeSqYd || null;
@@ -569,7 +567,7 @@ export async function registerRoutes(
           transformedConfig.sizeRange = config.sizeRange || config.sizeSqFt || null;
           transformedConfig.sizeUnit = config.sizeUnit || 'Sq ft';
         }
-        
+
         return transformedConfig;
       });
     }
@@ -702,7 +700,7 @@ export async function registerRoutes(
       if (unverifiedData && !unverifiedError) {
         console.log(`Found property in Unverified_Properties: ${unverifiedData.projectname || unverifiedData.rera_number}`);
         const mappedData = mapPropertyToFrontendFormat(unverifiedData);
-        
+
         return res.status(200).json({
           success: true,
           message: 'Property details fetched successfully from Unverified_Properties',
@@ -715,7 +713,7 @@ export async function registerRoutes(
 
       // Step 2: If not found in Unverified_Properties, search in unified_data table
       let query = supabase.from('unified_data').select('*');
-      
+
       if (projectName) {
         query = query.eq('projectname', projectName);
       } else if (reraNumber) {
@@ -741,7 +739,7 @@ export async function registerRoutes(
       // Handle configurations from multiple rows if needed
       let configurations: any[] = [];
       const isVillaProject = propertyData.project_type === 'Villa';
-      
+
       if (propertyData.configurations && Array.isArray(propertyData.configurations) && propertyData.configurations.length > 0) {
         configurations = propertyData.configurations.map((config: any) => {
           const transformedConfig: any = {
@@ -751,7 +749,7 @@ export async function registerRoutes(
             uds: config.uds !== undefined && config.uds !== null ? config.uds : null,
             configsoldoutstatus: config.configsoldoutstatus || config.configSoldOutStatus || 'active'
           };
-          
+
           if (isVillaProject) {
             transformedConfig.sizeSqFt = config.sizeSqFt || null;
             transformedConfig.sizeSqYd = config.sizeSqYd || null;
@@ -759,7 +757,7 @@ export async function registerRoutes(
             transformedConfig.sizeRange = config.sizeRange || config.sizeSqFt || null;
             transformedConfig.sizeUnit = config.sizeUnit || 'Sq ft';
           }
-          
+
           return transformedConfig;
         });
       } else if (data.length > 0) {
@@ -772,7 +770,7 @@ export async function registerRoutes(
               No_of_car_Parking: row.no_of_car_parkings ? parseInt(row.no_of_car_parkings) : null,
               configsoldoutstatus: row.configsoldoutstatus || 'active'
             };
-            
+
             if (isVillaProject) {
               config.sizeSqFt = row.sqfeet ? parseFloat(row.sqfeet) : null;
               config.sizeSqYd = row.sqyard ? parseFloat(row.sqyard) : null;
@@ -780,7 +778,7 @@ export async function registerRoutes(
               config.sizeRange = row.sqfeet ? parseFloat(row.sqfeet) : null;
               config.sizeUnit = 'Sq ft';
             }
-            
+
             return config;
           })
           .filter((config: any) => config.type !== null);
@@ -789,8 +787,8 @@ export async function registerRoutes(
       const mappedData = mapPropertyToFrontendFormat(propertyData);
       mappedData.configurations = configurations;
 
-      res.status(200).json({ 
-        success: true, 
+      res.status(200).json({
+        success: true,
         message: 'Property details fetched successfully from unified_data',
         data: mappedData,
         source: 'unified_data'
@@ -1339,7 +1337,7 @@ export async function registerRoutes(
 
     try {
       const { projectName } = req.params;
-      
+
       // Search in the unified/master properties table
       const { data, error } = await supabase
         .from('unified_data')
@@ -1368,7 +1366,7 @@ export async function registerRoutes(
 
     try {
       const { projectName } = req.params;
-      
+
       // Search in the Unverified_Properties table (agent submissions)
       const { data, error } = await supabase
         .from('Unverified_Properties')
@@ -1460,7 +1458,7 @@ export async function registerRoutes(
       const { email } = req.query;
 
       let query = supabase.from('Unverified_Properties').select('*');
-      
+
       if (email) {
         query = query.eq('useremail', email);
       }
@@ -1522,11 +1520,11 @@ export async function registerRoutes(
 
       // Check if we have a RERA number to identify the property
       const reraNumber = propertyData.RERA_Number || propertyData.rera_number;
-      
+
       if (!reraNumber) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'RERA number is required' 
+        return res.status(400).json({
+          success: false,
+          message: 'RERA number is required'
         });
       }
 
@@ -1658,18 +1656,18 @@ export async function registerRoutes(
       }
 
       console.log('Property saved successfully:', result?.rera_number);
-      res.status(200).json({ 
-        success: true, 
+      res.status(200).json({
+        success: true,
         message: existingProperty ? 'Property updated successfully' : 'Property saved successfully',
-        data: result 
+        data: result
       });
 
     } catch (error: any) {
       console.error('Error in /api/properties/save:', error);
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         message: 'Server error saving property',
-        error: error.message 
+        error: error.message
       });
     }
   });
@@ -1703,7 +1701,6 @@ export async function registerRoutes(
   });
 
   app.post(api.properties.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
     try {
       const input = insertPropertySchema.parse(req.body);
       const property = await storage.createProperty(input);
@@ -1720,7 +1717,6 @@ export async function registerRoutes(
   });
 
   app.put(api.properties.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
     try {
       const input = insertPropertySchema.partial().parse(req.body);
       const property = await storage.updateProperty(Number(req.params.id), input);
@@ -1738,7 +1734,6 @@ export async function registerRoutes(
   });
 
   app.delete(api.properties.delete.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
     try {
       await storage.deleteProperty(Number(req.params.id));
       res.status(204).send();
@@ -1750,7 +1745,6 @@ export async function registerRoutes(
   // === LEADS ===
 
   app.get(api.leads.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
     try {
       const filters = {
         status: req.query.status as string,
@@ -1780,7 +1774,6 @@ export async function registerRoutes(
   });
 
   app.put(api.leads.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
     try {
       const input = insertLeadSchema.partial().parse(req.body);
       const lead = await storage.updateLead(Number(req.params.id), input);
@@ -1800,9 +1793,10 @@ export async function registerRoutes(
   // === PROFILE ===
 
   app.get(api.profile.get.path, async (req: any, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
     try {
-      const profile = await storage.getProfile(req.user.claims.sub);
+      // Auth removed, using placeholder or email from query/body if available
+      const userId = req.query.userId as string || "local-user";
+      const profile = await storage.getProfile(userId);
       if (!profile) return res.status(404).json({ message: "Profile not found" });
       res.json(profile);
     } catch (err) {
@@ -1811,9 +1805,9 @@ export async function registerRoutes(
   });
 
   app.put(api.profile.update.path, async (req: any, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
     try {
-      const profile = await storage.updateProfile(req.user.claims.sub, req.body);
+      const userId = req.body.userId as string || "local-user";
+      const profile = await storage.updateProfile(userId, req.body);
       res.json(profile);
     } catch (err) {
       res.status(500).json({ message: "Failed to update profile" });
@@ -1821,7 +1815,7 @@ export async function registerRoutes(
   });
 
   // === SHARE LINKS (stored in client_Requirements.share_links field) ===
-  
+
   // Generate a unique share link
   app.post('/api/share/create', async (req, res) => {
     try {
@@ -1883,8 +1877,8 @@ export async function registerRoutes(
 
       const shareUrl = `${req.protocol}://${req.get('host')}/share/${token}`;
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         token,
         shareUrl,
         shareLink: shareLinkData
@@ -1928,7 +1922,7 @@ export async function registerRoutes(
 
       for (const record of records || []) {
         let shareLinks = record.share_links;
-        
+
         // Handle case where share_links might be a string (JSON)
         if (typeof shareLinks === 'string') {
           try {
@@ -1937,10 +1931,10 @@ export async function registerRoutes(
             continue;
           }
         }
-        
+
         // Ensure share_links is an array before searching
         if (!Array.isArray(shareLinks)) continue;
-        
+
         const matchingLink = shareLinks.find((link: any) => link.token === token);
         if (matchingLink) {
           foundShareLink = matchingLink;
@@ -1957,14 +1951,14 @@ export async function registerRoutes(
       // Fetch property details from Supabase unified_data
       const properties: any[] = [];
       const reraNumbers = foundShareLink.property_rera_numbers || [];
-      
+
       for (const reraNumber of reraNumbers) {
         const { data: propertyDataArray, error } = await supabase
           .from('unified_data')
           .select('*')
           .eq('rera_number', reraNumber)
           .limit(1);
-        
+
         if (!error && propertyDataArray && propertyDataArray.length > 0) {
           properties.push(propertyDataArray[0]);
         }
@@ -2014,7 +2008,7 @@ export async function registerRoutes(
 
       for (const record of allRecords) {
         let shareLinks = record.share_links;
-        
+
         if (typeof shareLinks === 'string') {
           try {
             shareLinks = JSON.parse(shareLinks);
@@ -2022,9 +2016,9 @@ export async function registerRoutes(
             continue;
           }
         }
-        
+
         if (!Array.isArray(shareLinks)) continue;
-        
+
         const linkIndex = shareLinks.findIndex((link: any) => link.token === token);
         if (linkIndex >= 0) {
           foundRecord = { ...record, share_links: shareLinks };
@@ -2078,24 +2072,24 @@ export async function registerRoutes(
 
       // Fetch full property details from unified_data for each project
       const enrichedProjects: any[] = [];
-      
+
       if (supabase) {
         for (const project of projects) {
           const reraNumber = project.RERA_Number || project.rera_number;
-          
+
           if (reraNumber && reraNumber !== 'N/A') {
             const { data: propertyDataArray, error } = await supabase
               .from('unified_data')
               .select('*')
               .eq('rera_number', reraNumber)
               .limit(1);
-            
+
             if (error) {
               console.log('PDF: Error fetching from unified_data for', reraNumber, error.message);
             }
-            
+
             const propertyData = propertyDataArray && propertyDataArray.length > 0 ? propertyDataArray[0] : null;
-            
+
             if (propertyData) {
               console.log('PDF: Found unified_data for', reraNumber, '- Keys:', Object.keys(propertyData).length);
               enrichedProjects.push({ ...project, ...propertyData });
@@ -2139,7 +2133,7 @@ export async function registerRoutes(
       };
 
       // Create PDF document - Landscape for comparison table layout
-      const doc = new PDFDocument({ 
+      const doc = new PDFDocument({
         size: [842, 595], // A4 Landscape
         margins: { top: 0, bottom: 0, left: 0, right: 0 },
         bufferPages: true
@@ -2182,7 +2176,7 @@ export async function registerRoutes(
       // ==================== SLIDE 1: Cover Page ====================
       const coverImage = await fetchImageFromStorage('property_images', 'images/slide1_cover.png');
       const localCover = loadLocalTemplate('cover_bg.png');
-      
+
       if (coverImage) {
         doc.image(coverImage, 0, 0, { width: 842, height: 595 });
       } else if (localCover) {
@@ -2199,10 +2193,10 @@ export async function registerRoutes(
 
       // ==================== SLIDE 2: Property Selection ====================
       doc.addPage();
-      
+
       const selectionImage = await fetchImageFromStorage('property_images', 'images/slide2_selection.png');
       const localSelection = loadLocalTemplate('selection_bg.png');
-      
+
       if (selectionImage) {
         doc.image(selectionImage, 0, 0, { width: 842, height: 595 });
       } else if (localSelection) {
@@ -2276,7 +2270,7 @@ export async function registerRoutes(
       enrichedProjects.forEach((property, propIdx) => {
         // ========== SLIDE A: Property Details (Overview) ==========
         doc.addPage();
-        
+
         if (propertyDetailsBg) {
           doc.image(propertyDetailsBg, 0, 0, { width: 842, height: 595 });
         } else {
@@ -2292,25 +2286,25 @@ export async function registerRoutes(
         let yPos = 130;
         slideAFields.forEach((field) => {
           let value = getValue(property, ...field.keys);
-          
+
           // Bullet point
           doc.circle(70, yPos + 6, 4).fill('#3B5998');
           doc.moveTo(74, yPos + 6).lineTo(95, yPos + 6).stroke('#3B5998');
-          
+
           // Label
           doc.fontSize(11).font('Helvetica-Bold').fillColor('#1a365d')
-             .text(field.label + ' :', 100, yPos);
-          
+            .text(field.label + ' :', 100, yPos);
+
           // Value
           doc.fontSize(11).font('Helvetica').fillColor('#333333')
-             .text(value.substring(0, 40), 220, yPos, { width: 200 });
-          
+            .text(value.substring(0, 40), 220, yPos, { width: 200 });
+
           yPos += 45;
         });
 
         // ========== SLIDE B: Property Details (Two Column) ==========
         doc.addPage();
-        
+
         if (propertyDetails2ColBg) {
           doc.image(propertyDetails2ColBg, 0, 0, { width: 842, height: 595 });
         } else {
@@ -2332,7 +2326,7 @@ export async function registerRoutes(
             value = property.configurations.map((c: any) => c.type || c).slice(0, 3).join(', ') || 'N/A';
           }
           if (field.keys.includes('price_range')) value = formatPrice(value);
-          
+
           doc.circle(55, yPos + 6, 4).fill('#3B5998');
           doc.moveTo(59, yPos + 6).lineTo(75, yPos + 6).stroke('#3B5998');
           doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d').text(field.label + ':', 80, yPos);
@@ -2344,7 +2338,7 @@ export async function registerRoutes(
         yPos = 100;
         slideBFieldsCol2.forEach((field) => {
           let value = getValue(property, ...field.keys);
-          
+
           doc.circle(455, yPos + 6, 4).fill('#3B5998');
           doc.moveTo(459, yPos + 6).lineTo(475, yPos + 6).stroke('#3B5998');
           doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d').text(field.label + ':', 480, yPos);
@@ -2354,7 +2348,7 @@ export async function registerRoutes(
 
         // ========== SLIDE C: Property Details (More Details) ==========
         doc.addPage();
-        
+
         if (propertyDetails2ColBg) {
           doc.image(propertyDetails2ColBg, 0, 0, { width: 842, height: 595 });
         } else {
@@ -2372,7 +2366,7 @@ export async function registerRoutes(
         yPos = 100;
         slideCFieldsCol1.forEach((field) => {
           let value = getValue(property, ...field.keys);
-          
+
           doc.circle(55, yPos + 6, 4).fill('#3B5998');
           doc.moveTo(59, yPos + 6).lineTo(75, yPos + 6).stroke('#3B5998');
           doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d').text(field.label + ':', 80, yPos);
@@ -2387,7 +2381,7 @@ export async function registerRoutes(
           if (field.keys.includes('external_amenities') && value.length > 50) {
             value = value.substring(0, 47) + '...';
           }
-          
+
           doc.circle(455, yPos + 6, 4).fill('#3B5998');
           doc.moveTo(459, yPos + 6).lineTo(475, yPos + 6).stroke('#3B5998');
           doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d').text(field.label + ':', 480, yPos);
@@ -2399,7 +2393,7 @@ export async function registerRoutes(
       // ==================== COMPARISON CARD SLIDE ====================
       const compareCardsBg = loadLocalTemplate('compare_cards_bg.png');
       doc.addPage();
-      
+
       if (compareCardsBg) {
         doc.image(compareCardsBg, 0, 0, { width: 842, height: 595 });
       } else {
@@ -2423,18 +2417,18 @@ export async function registerRoutes(
 
       enrichedProjects.slice(0, 5).forEach((property, idx) => {
         const cardX = cardStartX + (idx * (cardWidth + cardSpacing));
-        
+
         // White circle at top
         doc.circle(cardX + cardWidth / 2, cardY + 30, 35).fill('#ffffff').stroke('#3B5998');
-        
+
         // Blue card body
         doc.roundedRect(cardX, cardY + 50, cardWidth, cardHeight - 50, 15).fill('#3B5998');
-        
+
         // Property name in card
         const projectName = getValue(property, 'projectname', 'projectName');
         doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
-           .text(projectName.substring(0, 15), cardX + 10, cardY + 80, { width: cardWidth - 20, align: 'center' });
-        
+          .text(projectName.substring(0, 15), cardX + 10, cardY + 80, { width: cardWidth - 20, align: 'center' });
+
         // Key metrics in stripes
         const metrics = [
           { label: 'Price', value: formatPrice(getValue(property, 'price_range', 'priceRange')) },
@@ -2443,7 +2437,7 @@ export async function registerRoutes(
           { label: 'GRID', value: getValue(property, 'grid_score', 'GRID_Score') },
           { label: 'Status', value: getValue(property, 'construction_status').substring(0, 12) },
         ];
-        
+
         let stripeY = cardY + 120;
         metrics.forEach((metric, mIdx) => {
           const isEvenStripe = mIdx % 2 === 0;
@@ -2457,7 +2451,7 @@ export async function registerRoutes(
       // ==================== COMPARISON TABLE SLIDE ====================
       const compareTableBg = loadLocalTemplate('compare_table_bg.png');
       doc.addPage();
-      
+
       if (compareTableBg) {
         doc.image(compareTableBg, 0, 0, { width: 842, height: 595 });
       } else {
@@ -2482,7 +2476,7 @@ export async function registerRoutes(
         doc.rect(xPos, tableY, colWidth, rowHeight).fillAndStroke('#1a365d', '#ffffff');
         const projectName = getValue(property, 'projectname', 'projectName');
         doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
-           .text(projectName.substring(0, 18), xPos + 5, tableY + 12, { width: colWidth - 10, align: 'center' });
+          .text(projectName.substring(0, 18), xPos + 5, tableY + 12, { width: colWidth - 10, align: 'center' });
         xPos += colWidth;
       });
 
@@ -2501,18 +2495,18 @@ export async function registerRoutes(
       tableMetrics.forEach((metric, rowIdx) => {
         const rowY = tableY + rowHeight + (rowIdx * rowHeight);
         const isEvenRow = rowIdx % 2 === 0;
-        
+
         xPos = margin;
         enrichedProjects.slice(0, 5).forEach((property) => {
           doc.rect(xPos, rowY, colWidth, rowHeight)
-             .fillAndStroke(isEvenRow ? '#c8f7dc' : '#a8f0c8', '#ffffff');
-          
+            .fillAndStroke(isEvenRow ? '#c8f7dc' : '#a8f0c8', '#ffffff');
+
           let value = getValue(property, ...metric.keys);
           if (metric.format === 'price') value = formatPrice(value);
-          
+
           doc.fontSize(8).font('Helvetica').fillColor('#1a1a1a')
-             .text(value.substring(0, 20), xPos + 5, rowY + 12, { width: colWidth - 10, align: 'center' });
-          
+            .text(value.substring(0, 20), xPos + 5, rowY + 12, { width: colWidth - 10, align: 'center' });
+
           xPos += colWidth;
         });
       });
@@ -2522,10 +2516,10 @@ export async function registerRoutes(
 
     } catch (error: any) {
       console.error('PDF generation error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Failed to generate PDF', 
-        error: error.message 
+      res.status(500).json({
+        success: false,
+        message: 'Failed to generate PDF',
+        error: error.message
       });
     }
   });

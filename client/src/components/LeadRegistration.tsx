@@ -221,7 +221,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
     }
   });
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (window.location.hostname === 'localhost' ? 'http://localhost:3000' : '');
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
   const fetchPocDetails = async (reraNumbers: string[]) => {
     if (reraNumbers.length === 0) return;
@@ -341,7 +341,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       });
       return;
     }
-    
+
     // Extract lead IDs from selected property keys (format: leadId-propertyKey)
     const selectedLeadIds = new Set<number>();
     selectedPropertyKeys.forEach(key => {
@@ -350,7 +350,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
         selectedLeadIds.add(leadId);
       }
     });
-    
+
     // If all selected properties belong to the same lead, auto-fill lead info
     if (selectedLeadIds.size === 1) {
       const leadId = Array.from(selectedLeadIds)[0];
@@ -367,7 +367,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       setLeadName('');
       setLeadMobile('');
     }
-    
+
     setLeadModalOpen(true);
   };
 
@@ -563,7 +563,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
 
     let name = '';
     let mobile = '';
-    
+
     if (selectedLeadIds.size === 1) {
       const leadId = Array.from(selectedLeadIds)[0];
       const lead = leads.find(l => l.id === leadId);
@@ -588,20 +588,20 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
 
   const generateShareLinkWithInfo = async (name: string, mobile: string) => {
     setGeneratingShareLink(true);
-    
+
     try {
       // Get RERA numbers from selected properties and find the lead's actual mobile
       const propertyReraNumbers: string[] = [];
       const seenReras = new Set<string>();
       let leadMobileFromDb = mobile; // fallback to entered mobile
-      
+
       // Get lead ID from selected properties
       const selectedLeadIds = new Set<number>();
       selectedPropertyKeys.forEach(key => {
         const leadId = parseInt(key.split('-')[0]);
         if (!isNaN(leadId)) selectedLeadIds.add(leadId);
       });
-      
+
       // If only one lead selected, use their mobile number from database
       if (selectedLeadIds.size === 1) {
         const leadId = Array.from(selectedLeadIds)[0];
@@ -610,14 +610,14 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
           leadMobileFromDb = lead.client_mobile;
         }
       }
-      
+
       leads.forEach(lead => {
         (lead.shortlisted_properties ?? []).forEach(p => {
           const reraNumber = p.property?.rera_number || p.rera_number;
           const projectName = p.property?.projectname || p.projectname || p.propertyName;
           const key = reraNumber || projectName || '';
           const propertyKey = `${lead.id}-${key}`;
-          
+
           if (selectedPropertyKeys.has(propertyKey) && reraNumber && !seenReras.has(reraNumber)) {
             seenReras.add(reraNumber);
             propertyReraNumbers.push(reraNumber);
@@ -715,7 +715,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
 
     try {
       console.log(`Fetching leads page ${page}...`);
-      
+
       // Build query params
       const params = new URLSearchParams({
         page: page.toString(),
@@ -735,12 +735,12 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
 
       const data = await response.json();
       const pageLeads = data.data || [];
-      
+
       setLeads(pageLeads);
       setTotalLeads(data.pagination?.total || 0);
       setTotalPages(data.pagination?.totalPages || 1);
       setCurrentPage(page);
-      
+
       console.log(`✅ Loaded ${pageLeads.length} leads (page ${page} of ${data.pagination?.totalPages})`);
 
       // Fetch related data for current page only
@@ -1331,7 +1331,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
 
                     return (
                       <React.Fragment key={lead.id}>
-                        <tr 
+                        <tr
                           className="hover:bg-gray-50 cursor-pointer"
                           onClick={() => toggleLeadExpansion(lead.id)}
                           data-testid={`row-lead-${lead.id}`}
@@ -1358,9 +1358,8 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                             <select
                               value={leadStatuses[lead.id] || 'yet_to_be_done'}
                               onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
-                              className={`text-xs font-medium px-2 py-1 rounded-md border-0 cursor-pointer ${
-                                STATUS_OPTIONS.find(s => s.value === (leadStatuses[lead.id] || 'yet_to_be_done'))?.color || 'bg-gray-100 text-gray-700'
-                              }`}
+                              className={`text-xs font-medium px-2 py-1 rounded-md border-0 cursor-pointer ${STATUS_OPTIONS.find(s => s.value === (leadStatuses[lead.id] || 'yet_to_be_done'))?.color || 'bg-gray-100 text-gray-700'
+                                }`}
                               data-testid={`select-status-${lead.id}`}
                             >
                               {STATUS_OPTIONS.map(option => (
@@ -1534,7 +1533,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
           </div>
         </Card>
       )}
-      
+
       <Dialog open={shareLinkModalOpen} onOpenChange={setShareLinkModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1564,7 +1563,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
           </div>
         </DialogContent>
       </Dialog>
-      
+
       <LeadInfoModal
         open={leadModalOpen}
         onClose={() => {

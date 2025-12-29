@@ -40,7 +40,7 @@ const SharePage = () => {
       try {
         const response = await fetch(`/api/share/${token}`);
         const result = await response.json();
-        
+
         if (result.success) {
           setData(result);
         } else {
@@ -62,9 +62,9 @@ const SharePage = () => {
     if (value === undefined || value === null) return false;
     if (typeof value === 'string') {
       const normalized = value.trim().toLowerCase();
-      if (normalized === '' || normalized === 'n/a' || normalized === 'na' || 
-          normalized === '-' || normalized === '--' || normalized === '---' ||
-          normalized === 'null' || normalized === 'undefined') {
+      if (normalized === '' || normalized === 'n/a' || normalized === 'na' ||
+        normalized === '-' || normalized === '--' || normalized === '---' ||
+        normalized === 'null' || normalized === 'undefined') {
         return false;
       }
     }
@@ -101,7 +101,7 @@ const SharePage = () => {
   };
 
   const excludedDetailsFields = [
-    'id', 'google_place_id', 'google_place_name', 'google_place_address', 
+    'id', 'google_place_id', 'google_place_name', 'google_place_address',
     'google_place_location', 'google_maps_location', 'amenities_updated_at',
     'mobile_google_map_url', 'configsoldoutstatus', 'google_place_raw_data'
   ];
@@ -122,7 +122,7 @@ const SharePage = () => {
 
   const handleFriendSubmit = async () => {
     if (!friendName.trim() || !friendNumber.trim()) return;
-    
+
     setSavingFriend(true);
     try {
       const response = await fetch(`/api/share/${token}/friend`, {
@@ -130,7 +130,7 @@ const SharePage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ friend_name: friendName, friend_number: friendNumber })
       });
-      
+
       if (response.ok) {
         const cleanNumber = friendNumber.replace(/\D/g, '');
         const shareUrl = window.location.href;
@@ -177,7 +177,7 @@ const SharePage = () => {
   }
 
   const basicInfoKeys = [
-    'projectname', 'buildername', 'areaname', 'city', 'state', 'rera_number', 
+    'projectname', 'buildername', 'areaname', 'city', 'state', 'rera_number',
     'project_type', 'communitytype', 'project_status', 'isavailable'
   ];
 
@@ -188,24 +188,24 @@ const SharePage = () => {
   ];
 
   const configurationKeys = [
-    'bhk', 'sqfeet', 'sqyard', 'facing', 'carpet_area_percentage', 
+    'bhk', 'sqfeet', 'sqyard', 'facing', 'carpet_area_percentage',
     'floor_to_ceiling_height', 'main_door_height', 'uds', 'fsi'
   ];
 
   const getConfigurationRows = (): { key: string; values: (string | null)[] }[] => {
     const rows: { key: string; values: (string | null)[] }[] = [];
-    
+
     for (const key of configurationKeys) {
       const values = data.properties.map(prop => {
         const val = prop[key];
         return isValidValue(val) ? String(val) : null;
       });
-      
+
       if (values.some(v => v !== null)) {
         rows.push({ key, values });
       }
     }
-    
+
     const baseCostValues = data.properties.map(prop => {
       const sqfeet = parseFloat(prop['sqfeet']);
       const pricePerSft = parseFloat(prop['price_per_sft']);
@@ -215,17 +215,17 @@ const SharePage = () => {
       }
       return null;
     });
-    
+
     if (baseCostValues.some(v => v !== null)) {
       rows.push({ key: 'base_cost', values: baseCostValues });
     }
-    
+
     return rows;
   };
 
   const handleBookSiteVisit = (projectName: string) => {
     const message = `Hi, I would like to book a site visit for ${projectName}. My details: ${data?.leadName} - ${data?.leadMobile}`;
-    window.open(`https://wa.me/919876543210?text=${encodeURIComponent(message)}`, '_blank');
+    window.open(`https://wa.me/7331112955?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   const renderTableButtonRow = () => (
@@ -235,7 +235,7 @@ const SharePage = () => {
         const projectName = getValue(property, 'projectname') || `Property ${idx + 1}`;
         return (
           <td key={idx} className="p-3">
-            <Button 
+            <Button
               size="sm"
               variant="outline"
               className="w-full border-2"
@@ -296,15 +296,15 @@ const SharePage = () => {
   };
 
   const projectDetailsKeys = [
-    'total_land_area', 'number_of_towers', 'number_of_floors', 
+    'total_land_area', 'number_of_towers', 'number_of_floors',
     'number_of_flats_per_floor', 'total_number_of_units', 'open_space',
     'possession_date', 'project_launch_date', 'construction_status'
   ];
 
   const amenitiesKeys = [
-    'powerbackup', 'no_of_passenger_lift', 'no_of_service_lift', 
+    'powerbackup', 'no_of_passenger_lift', 'no_of_service_lift',
     'visitor_parking', 'ground_vehicle_movement', 'no_of_car_parkings',
-    'external_amenities', 'specification'
+    'external_amenities', 'specification', 'amenities_raw_data'
   ];
 
   const scoreKeys = [
@@ -313,14 +313,14 @@ const SharePage = () => {
   ];
 
   const nearbyKeys = [
-    'hospitals_count', 'shopping_malls_count', 'schools_count', 
+    'hospitals_count', 'shopping_malls_count', 'schools_count',
     'restaurants_count', 'restaurants_above_4_stars_count', 'supermarkets_count',
     'it_offices_count', 'metro_stations_count', 'railway_stations_count'
   ];
 
   const getComparisonRows = (keys: string[]): { key: string; values: (string | null)[] }[] => {
     const rows: { key: string; values: (string | null)[] }[] = [];
-    
+
     for (const key of keys) {
       const values = data.properties.map(prop => {
         const val = prop[key];
@@ -329,12 +329,12 @@ const SharePage = () => {
         }
         return isValidValue(val) ? String(val) : null;
       });
-      
+
       if (values.some(v => v !== null)) {
         rows.push({ key, values });
       }
     }
-    
+
     return rows;
   };
 
@@ -383,9 +383,9 @@ const SharePage = () => {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
       <header className="relative">
         <div className="w-full">
-          <img 
-            src={heroImage} 
-            alt="Relai Right Home Report" 
+          <img
+            src={heroImage}
+            alt="Relai Right Home Report"
             className="w-full h-auto object-cover"
             data-testid="img-hero"
           />
@@ -397,8 +397,8 @@ const SharePage = () => {
                 <p className="text-white/80">Personalized property comparison prepared for you</p>
               </div>
               <div className="flex items-center gap-6 flex-wrap">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="bg-white/10 border-white/30 text-white hover:bg-white/20"
                   onClick={() => setFriendModalOpen(true)}
                   data-testid="button-discuss-friend"
@@ -426,7 +426,7 @@ const SharePage = () => {
             <Building2 className="h-5 w-5" style={{ color: '#3350a3' }} />
             Properties Overview ({data.properties.length} Properties)
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.properties.map((property, idx) => {
               const projectName = getValue(property, 'projectname');
@@ -440,7 +440,7 @@ const SharePage = () => {
               const projectType = getValue(property, 'project_type');
               const gridScore = getValue(property, 'GRID_Score');
               const pricePerSft = getValue(property, 'price_per_sft');
-              
+
               return (
                 <Card key={idx} className="overflow-hidden" data-testid={`card-property-${idx}`}>
                   <CardHeader style={{ backgroundColor: 'rgba(51, 80, 163, 0.1)' }} className="pb-3">
@@ -458,7 +458,7 @@ const SharePage = () => {
                         <span>{areaName}</span>
                       </div>
                     )}
-                    
+
                     {price && (
                       <div className="flex items-center gap-2 text-sm">
                         <IndianRupee className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -466,7 +466,7 @@ const SharePage = () => {
                         {pricePerSft && <span className="text-muted-foreground">({pricePerSft}/sft)</span>}
                       </div>
                     )}
-                    
+
                     {sqft && (
                       <div className="flex items-center gap-2 text-sm">
                         <Ruler className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -474,14 +474,14 @@ const SharePage = () => {
                         {bhk && <span className="text-muted-foreground">| {bhk} BHK</span>}
                       </div>
                     )}
-                    
+
                     {possession && (
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <span>Possession: {possession}</span>
                       </div>
                     )}
-                    
+
                     <div className="flex flex-wrap gap-2 pt-2">
                       {reraNumber && (
                         <Badge variant="secondary" className="text-xs">
@@ -505,7 +505,7 @@ const SharePage = () => {
             })}
           </div>
           <div className="mt-4 flex justify-center">
-            <Button 
+            <Button
               variant="outline"
               className="bg-green-600 text-white border-green-600 hover:bg-green-700"
               onClick={() => setFriendModalOpen(true)}
@@ -524,7 +524,7 @@ const SharePage = () => {
             <CheckCircle className="h-6 w-6" style={{ color: '#3350a3' }} />
             Comprehensive Property Comparison
           </h2>
-          
+
           {renderComparisonTable("Basic Information", basicInfoKeys, <Building2 className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           {renderComparisonTable("Pricing Details", pricingKeys, <IndianRupee className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           {renderConfigurationTable("Unit Configuration", <Home className="h-5 w-5" style={{ color: '#3350a3' }} />)}
@@ -532,11 +532,11 @@ const SharePage = () => {
           {renderComparisonTable("Amenities & Features", amenitiesKeys, <Waves className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           {renderComparisonTable("Scores & Ratings", scoreKeys, <Star className="h-5 w-5" style={{ color: '#3350a3' }} />)}
           {renderComparisonTable("Nearby Facilities Count", nearbyKeys, <MapPin className="h-5 w-5" style={{ color: '#3350a3' }} />)}
-          
+
           <div className="mt-6 p-4 bg-muted/30 rounded-lg">
             <h4 className="text-sm font-medium mb-3 text-muted-foreground">Need help deciding?</h4>
             <div className="flex flex-wrap gap-3 items-center">
-              <Button 
+              <Button
                 variant="outline"
                 className="bg-green-600 text-white border-green-600 hover:bg-green-700"
                 onClick={() => setFriendModalOpen(true)}
@@ -548,7 +548,7 @@ const SharePage = () => {
               {data.properties.map((property, idx) => {
                 const projectName = toTitleCase(getValue(property, 'projectname')) || `Property ${idx + 1}`;
                 return (
-                  <Button 
+                  <Button
                     key={idx}
                     variant="outline"
                     className="border-2"
@@ -572,7 +572,7 @@ const SharePage = () => {
             <Shield className="h-5 w-5" style={{ color: '#3350a3' }} />
             Additional Property Details
           </h2>
-          
+
           {data.properties.map((property, idx) => {
             const projectName = getValue(property, 'projectname');
             const builderName = getValue(property, 'buildername');
@@ -582,10 +582,10 @@ const SharePage = () => {
             const mapsUrl = getValue(property, 'projectlocation', 'mobile_google_map_url', 'google_maps_location');
             const brochure = getValue(property, 'projectbrochure');
             const highRatedRestaurants = parseRestaurants(property['high_rated_restaurants']);
-            
-            const allKeys = Object.keys(property).filter(key => 
-              !basicInfoKeys.includes(key) && 
-              !pricingKeys.includes(key) && 
+
+            const allKeys = Object.keys(property).filter(key =>
+              !basicInfoKeys.includes(key) &&
+              !pricingKeys.includes(key) &&
               !configurationKeys.includes(key) &&
               !projectDetailsKeys.includes(key) &&
               !amenitiesKeys.includes(key) &&
@@ -597,7 +597,7 @@ const SharePage = () => {
               !excludedDetailsFields.includes(key) &&
               isValidValue(property[key])
             );
-            
+
             return (
               <Card key={idx} className="mb-6" data-testid={`card-details-${idx}`}>
                 <CardHeader>
@@ -619,12 +619,12 @@ const SharePage = () => {
                       <p className="text-sm">{googleAddress}</p>
                     </div>
                   )}
-                  
+
                   <div className="flex flex-wrap gap-3 mb-4">
                     {mapsUrl && (
-                      <a 
-                        href={mapsUrl} 
-                        target="_blank" 
+                      <a
+                        href={mapsUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 text-sm hover:underline"
                         style={{ color: '#3350a3' }}
@@ -633,9 +633,9 @@ const SharePage = () => {
                       </a>
                     )}
                     {brochure && (
-                      <a 
-                        href={brochure} 
-                        target="_blank" 
+                      <a
+                        href={brochure}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 text-sm hover:underline"
                         style={{ color: '#3350a3' }}
@@ -646,8 +646,8 @@ const SharePage = () => {
                   </div>
 
                   {highRatedRestaurants.length > 0 && (
-                    <Collapsible 
-                      open={expandedRestaurants[idx]} 
+                    <Collapsible
+                      open={expandedRestaurants[idx]}
                       onOpenChange={(open) => setExpandedRestaurants(prev => ({ ...prev, [idx]: open }))}
                       className="mb-4"
                     >
@@ -677,7 +677,7 @@ const SharePage = () => {
                       </CollapsibleContent>
                     </Collapsible>
                   )}
-                  
+
                   {allKeys.length > 0 && (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {allKeys.slice(0, 16).map(key => {
@@ -698,10 +698,10 @@ const SharePage = () => {
               </Card>
             );
           })}
-          
+
           <div className="mt-6 p-4 bg-muted/30 rounded-lg text-center">
             <p className="text-sm text-muted-foreground mb-3">Want a second opinion on these properties?</p>
-            <Button 
+            <Button
               variant="outline"
               className="bg-green-600 text-white border-green-600 hover:bg-green-700"
               onClick={() => setFriendModalOpen(true)}
@@ -717,10 +717,10 @@ const SharePage = () => {
       <footer className="bg-muted py-6 mt-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-muted-foreground text-sm">
           <p className="font-medium">Powered by Relai World | www.relai.world</p>
-          <p className="mt-1">This comparison was generated on {new Date(data.createdAt).toLocaleDateString('en-IN', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+          <p className="mt-1">This comparison was generated on {new Date(data.createdAt).toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
           })}</p>
           <p className="mt-2 text-xs">For the right home, trust Relai.</p>
         </div>
@@ -752,7 +752,7 @@ const SharePage = () => {
               <Label htmlFor="friend-number">Friend's Mobile Number</Label>
               <Input
                 id="friend-number"
-                placeholder="e.g., 919876543210"
+                placeholder="e.g., 7331112955"
                 value={friendNumber}
                 onChange={(e) => setFriendNumber(e.target.value)}
                 data-testid="input-friend-number"
@@ -764,7 +764,7 @@ const SharePage = () => {
             <Button variant="outline" onClick={() => setFriendModalOpen(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleFriendSubmit}
               disabled={!friendName.trim() || !friendNumber.trim() || savingFriend}
               className="gap-2"

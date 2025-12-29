@@ -6,11 +6,18 @@ config();
 
 const { Pool } = pg;
 
-if (!process.env.SUPABASE_URL) {
+const connectionString = process.env.DATABASE_URL || process.env.SUPABASE_URL;
+
+if (!connectionString) {
   throw new Error(
-    "SUPABASE_URL must be set. Did you forget to provision a database?",
+    "DATABASE_URL or SUPABASE_URL must be set. Did you forget to provision a database?",
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.SUPABASE_URL });
+if (connectionString.startsWith("https")) {
+  console.warn("SUPABASE_URL is an HTTPS URL but is being used as a Postgres connection string. This will likely fail.");
+}
+
+export const pool = new Pool({ connectionString });
 export const db = drizzle(pool, { schema });
+
