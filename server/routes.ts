@@ -11,6 +11,26 @@ import PDFDocument from "pdfkit";
 import path from "path";
 import fs from "fs";
 
+const UNIFIED_DATA_KEYS = [
+  'id', 'rera_number', 'projectname', 'buildername', 'baseprojectprice', 'projectbrochure', 'contact', 'projectlocation', 'project_type', 'buildingname', 'communitytype', 'total_land_area', 'number_of_towers', 'number_of_floors', 'number_of_flats_per_floor', 'total_number_of_units', 'project_launch_date', 'possession_date', 'construction_status', 'open_space', 'carpet_area_percentage', 'floor_to_ceiling_height', 'price_per_sft', 'external_amenities', 'specification', 'powerbackup', 'no_of_passenger_lift', 'no_of_service_lift', 'visitor_parking', 'ground_vehicle_movement', 'bhk', 'facing', 'sqfeet', 'sqyard', 'no_of_car_parkings', 'amount_for_extra_car_parking', 'home_loan', 'complaint_details', 'construction_material', 'commission_percentage', 'what_is_there_price', 'what_is_relai_price', 'after_agreement_of_sale_what_is_payout_time_period', 'is_lead_registration_required_before_site_visit', 'turnaround_time_for_lead_acknowledgement', 'is_there_validity_period_for_registered_lead', 'validity_period_value', 'person_to_confirm_registration', 'notes_comments_on_lead_registration_workflow', 'accepted_modes_of_lead_registration', 'status', 'useremail', 'poc_name', 'poc_contact', 'poc_role', 'createdat', 'updatedat', 'verified', 'areaname', 'pricesheet_link', 'pricesheet_link_1', 'total_buildup_area', 'uds', 'fsi', 'main_door_height', 'available_banks_for_loan', 'floor_rise_charges', 'floor_rise_amount_per_floor', 'floor_rise_applicable_above_floor_no', 'facing_charges', 'preferential_location_charges', 'preferential_location_charges_conditions', 'project_status', 'google_place_id', 'google_place_name', 'google_place_address', 'google_place_location', 'google_place_rating', 'google_place_user_ratings_total', 'google_maps_location', 'google_place_raw_data', 'hospitals_count', 'shopping_malls_count', 'schools_count', 'restaurants_count', 'restaurants_above_4_stars_count', 'supermarkets_count', 'it_offices_count', 'metro_stations_count', 'railway_stations_count', 'nearest_hospitals', 'nearest_shopping_malls', 'nearest_schools', 'nearest_restaurants', 'high_rated_restaurants', 'nearest_supermarkets', 'nearest_it_offices', 'nearest_metro_station', 'nearest_railway_station', 'nearest_orr_access', 'connectivity_score', 'amenities_score', 'amenities_raw_data', 'amenities_updated_at', 'mobile_google_map_url', 'GRID_Score', 'isavailable', 'configsoldoutstatus', 'city', 'state', 'cp',
+  'builder_age', 'builder_completed_properties', 'builder_ongoing_projects', 'builder_operating_locations', 'builder_origin_city', 'builder_total_properties', 'builder_upcoming_properties'
+];
+
+function filterUnifiedData(data: any): any {
+  const filtered: any = {};
+  UNIFIED_DATA_KEYS.forEach(key => {
+    if (key in data && data[key] !== undefined) {
+      filtered[key] = data[key];
+    }
+  });
+  return filtered;
+}
+
+function normalizeBhk(bhk: any): string {
+  if (!bhk) return '';
+  return String(bhk).toLowerCase().replace(/[^0-9.]/g, '').trim() || String(bhk).toLowerCase().trim();
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -955,33 +975,135 @@ export async function registerRoutes(
       }
 
       if (action === 'verify') {
-        // Move to verified table (onboarded_data)
-        const verifiedData = {
-          rera_number: reraNumber,
-          projectname: data.ProjectName || existingProject.projectname,
-          buildername: data.BuilderName || existingProject.buildername,
-          project_type: data.Project_Type || existingProject.project_type,
-          communitytype: data.CommunityType || existingProject.communitytype,
-          number_of_floors: data.Number_of_Floors || existingProject.number_of_floors,
-          possession_date: data.Possession_Date || existingProject.possession_date,
-          open_space: data.Open_Space || existingProject.open_space,
-          commission_percentage: data.Commission_percentage || existingProject.commission_percentage,
-          poc_name: data.POC_Name || existingProject.poc_name,
-          poc_contact: data.POC_Contact || existingProject.poc_contact,
-          poc_role: data.POC_Role || existingProject.poc_role,
-          useremail: existingProject.useremail,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+        // Prepare data for unified_data table
+        const baseProjectData = {
+          ...existingProject,
+          ...data,
+          verified: 'true',
+          updatedat: new Date().toISOString()
         };
 
+        const configurations = existingProject.configurations || data.configurations || [];
+        const rowsToUpsert: any[] = [];
+
+        // Try to find existing rows in unified_data to update instead of create new ones
+        let matches: any[] = [];
+        const searchKey = existingProject.rera_number || data.ReraNumber;
+        const searchName = data.ProjectName || existingProject.projectname;
+
+        if (searchKey || searchName) {
+          let query = supabase.from('unified_data').select('id, rera_number, projectname, bhk, sqfeet, facing');
+          if (searchKey) {
+            query = query.eq('rera_number', String(searchKey).trim());
+          } else {
+            query = query.eq('projectname', String(searchName).trim());
+          }
+          const { data: existingMatches } = await query;
+          matches = existingMatches || [];
+        }
+
+        const usedMatchIds = new Set<string>();
+
+        if (configurations.length > 0) {
+          // Create/Update a row for each configuration
+          configurations.forEach((config: any, index: number) => {
+            const { configurations: _, bhk: __, BHK: ___, ...cleanBaseData } = baseProjectData;
+
+            const currentBhk = config.type || config.bhk || '';
+            const currentSqfeet = config.sizeUnit === 'Sq ft' ? config.sizeRange : null;
+            const currentFacing = config.facing || '';
+
+            const normalizedInputBhk = normalizeBhk(currentBhk);
+
+            // Tier 1: Perfect Match
+            let match = matches.find(m => {
+              if (usedMatchIds.has(m.id)) return false;
+              const bhkMatch = normalizeBhk(m.bhk) === normalizedInputBhk;
+              const facingMatch = !currentFacing || !m.facing ||
+                m.facing.toLowerCase().trim() === currentFacing.toLowerCase().trim();
+              const sqfeetMatch = !currentSqfeet || !m.sqfeet ||
+                String(m.sqfeet).trim() === String(currentSqfeet).trim();
+              return bhkMatch && facingMatch && sqfeetMatch;
+            });
+
+            // Tier 2: BHK + Facing
+            if (!match) {
+              match = matches.find(m => {
+                if (usedMatchIds.has(m.id)) return false;
+                const bhkMatch = normalizeBhk(m.bhk) === normalizedInputBhk;
+                const facingMatch = !currentFacing || !m.facing ||
+                  m.facing.toLowerCase().trim() === currentFacing.toLowerCase().trim();
+                return bhkMatch && facingMatch;
+              });
+            }
+
+            // Tier 3: BHK Match
+            if (!match) {
+              match = matches.find(m => {
+                if (usedMatchIds.has(m.id)) return false;
+                return normalizeBhk(m.bhk) === normalizedInputBhk;
+              });
+            }
+
+            // Tier 4: Greedy match (Any unused row for this project)
+            if (!match) {
+              match = matches.find(m => !usedMatchIds.has(m.id));
+            }
+
+            if (match) usedMatchIds.add(match.id);
+
+            const rowData = {
+              ...cleanBaseData,
+              id: match ? match.id : `${existingProject.id}_${index}`,
+              bhk: normalizeBhk(currentBhk),
+              sqfeet: currentSqfeet,
+              sqyard: config.sizeUnit === 'Sq yard' ? config.sizeRange : null,
+              no_of_car_parkings: config.No_of_car_Parking || config.no_of_car_parkings || null,
+              uds: config.uds || null,
+              facing: currentFacing,
+              configsoldoutstatus: config.configsoldoutstatus || config.configSoldOutStatus || 'active'
+            };
+            rowsToUpsert.push(filterUnifiedData(rowData));
+          });
+        } else {
+          // No configurations, just one row
+          const { configurations: _, bhk: __, BHK: ___, ...cleanBaseData } = baseProjectData;
+
+          // Match by rera/name alone if no configs
+          const match = matches[0];
+
+          const rowData = {
+            ...cleanBaseData,
+            id: match ? match.id : existingProject.id,
+            bhk: normalizeBhk(cleanBaseData.bhk)
+          };
+          rowsToUpsert.push(filterUnifiedData(rowData));
+        }
+
+        // Apply creation timestamp if missing
+        rowsToUpsert.forEach(row => {
+          if (!row.createdat) {
+            row.createdat = baseProjectData.createdat || existingProject.created_at || new Date().toISOString();
+          }
+        });
+
+        console.log('Upserting to unified_data (Agent):', JSON.stringify(rowsToUpsert, null, 2));
         const { error: insertError } = await supabase
-          .from('onboarded_data')
-          .insert([verifiedData]);
+          .from('unified_data')
+          .upsert(rowsToUpsert, { onConflict: 'id' });
 
         if (insertError) {
-          console.error('Error inserting to verified:', insertError);
-          return res.status(500).json({ message: 'Error verifying project' });
+          console.error('Error inserting to unified_data:', insertError);
+          return res.status(500).json({
+            message: 'Error verifying project',
+            success: false,
+            error: insertError.message,
+            details: insertError.details
+          });
         }
+
+        // Export the first row's data for the response compatibility
+        const unifiedData = rowsToUpsert[0];
 
         // Delete from unverified
         await supabase
@@ -989,7 +1111,7 @@ export async function registerRoutes(
           .delete()
           .eq('rera_number', reraNumber);
 
-        res.status(200).json({ message: 'Project verified and saved successfully', data: verifiedData });
+        res.status(200).json({ success: true, message: 'Project verified and saved successfully', data: unifiedData });
       } else {
         // Just update the existing record
         const updateData = {
@@ -1407,33 +1529,130 @@ export async function registerRoutes(
         return res.status(404).json({ message: 'Property not found' });
       }
 
-      // Insert into verified table
-      const verifiedData = {
-        rera_number: property.rera_number,
-        projectname: property.projectname,
-        buildername: property.buildername,
-        project_type: property.project_type,
-        communitytype: property.communitytype,
-        number_of_floors: property.number_of_floors,
-        possession_date: property.possession_date,
-        open_space: property.open_space,
-        commission_percentage: property.commission_percentage,
-        poc_name: property.poc_name,
-        poc_contact: property.poc_contact,
-        poc_role: property.poc_role,
-        useremail: property.useremail,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+      // Prepare data for unified_data table
+      const configurations = property.configurations || [];
+      const rowsToUpsert: any[] = [];
 
+      // Try to find existing rows in unified_data to update
+      let matches: any[] = [];
+      if (property.rera_number || property.projectname) {
+        let query = supabase.from('unified_data').select('id, rera_number, projectname, bhk, sqfeet, facing');
+        if (property.rera_number) {
+          query = query.eq('rera_number', String(property.rera_number).trim());
+        } else {
+          query = query.eq('projectname', String(property.projectname).trim());
+        }
+        const { data: existingMatches } = await query;
+        matches = existingMatches || [];
+      }
+
+      const usedMatchIds = new Set<string>();
+
+      if (configurations.length > 0) {
+        // Create/Update a row for each configuration
+        configurations.forEach((config: any, index: number) => {
+          // Explicitly remove configurations and bhk to avoid schema or double-key errors
+          const { configurations: _, bhk: __, BHK: ___, ...cleanProperty } = property;
+
+          const currentBhk = config.type || config.bhk || '';
+          const currentSqfeet = config.sizeUnit === 'Sq ft' ? config.sizeRange : null;
+          const currentFacing = config.facing || '';
+
+          const normalizedInputBhk = normalizeBhk(currentBhk);
+
+          // Tier 1: Perfect Match
+          let match = matches.find(m => {
+            if (usedMatchIds.has(m.id)) return false;
+            const bhkMatch = normalizeBhk(m.bhk) === normalizedInputBhk;
+            const facingMatch = !currentFacing || !m.facing ||
+              m.facing.toLowerCase().trim() === currentFacing.toLowerCase().trim();
+            const sqfeetMatch = !currentSqfeet || !m.sqfeet ||
+              String(m.sqfeet).trim() === String(currentSqfeet).trim();
+            return bhkMatch && facingMatch && sqfeetMatch;
+          });
+
+          // Tier 2: BHK + Facing
+          if (!match) {
+            match = matches.find(m => {
+              if (usedMatchIds.has(m.id)) return false;
+              const bhkMatch = normalizeBhk(m.bhk) === normalizedInputBhk;
+              const facingMatch = !currentFacing || !m.facing ||
+                m.facing.toLowerCase().trim() === currentFacing.toLowerCase().trim();
+              return bhkMatch && facingMatch;
+            });
+          }
+
+          // Tier 3: BHK Match
+          if (!match) {
+            match = matches.find(m => {
+              if (usedMatchIds.has(m.id)) return false;
+              return normalizeBhk(m.bhk) === normalizedInputBhk;
+            });
+          }
+
+          // Tier 4: Greedy match (Any unused row for this project)
+          if (!match) {
+            match = matches.find(m => !usedMatchIds.has(m.id));
+          }
+
+          if (match) usedMatchIds.add(match.id);
+
+          const rowData = {
+            ...cleanProperty,
+            id: match ? match.id : `${property.id}_${index}`,
+            verified: 'true',
+            updatedat: new Date().toISOString(),
+            bhk: normalizeBhk(currentBhk),
+            sqfeet: currentSqfeet,
+            sqyard: config.sizeUnit === 'Sq yard' ? config.sizeRange : null,
+            no_of_car_parkings: config.No_of_car_Parking || config.no_of_car_parkings || null,
+            uds: config.uds || null,
+            facing: currentFacing,
+            configsoldoutstatus: config.configsoldoutstatus || config.configSoldOutStatus || 'active'
+          };
+
+          const filtered = filterUnifiedData(rowData);
+          if (!filtered.createdat) {
+            filtered.createdat = property.createdat || property.created_at || new Date().toISOString();
+          }
+          rowsToUpsert.push(filtered);
+        });
+      } else {
+        // No configurations, just one row
+        const { configurations: _, bhk: __, BHK: ___, ...cleanProperty } = property;
+
+        // Match by rera/name alone if no configs
+        const match = matches[0];
+
+        const filtered = filterUnifiedData({
+          ...cleanProperty,
+          verified: 'true',
+          id: match ? match.id : property.id,
+          bhk: normalizeBhk(cleanProperty.bhk),
+          updatedat: new Date().toISOString()
+        });
+        if (!filtered.createdat) {
+          filtered.createdat = property.createdat || property.created_at || new Date().toISOString();
+        }
+        rowsToUpsert.push(filtered);
+      }
+
+      console.log('Upserting to unified_data (Admin):', JSON.stringify(rowsToUpsert, null, 2));
       const { error: insertError } = await supabase
-        .from('onboarded_data')
-        .insert([verifiedData]);
+        .from('unified_data')
+        .upsert(rowsToUpsert, { onConflict: 'id' });
 
       if (insertError) {
-        console.error('Error inserting verified property:', insertError);
-        return res.status(500).json({ message: 'Error verifying property' });
+        console.error('Error inserting unified property:', insertError);
+        return res.status(500).json({
+          message: 'Error verifying property',
+          success: false,
+          error: insertError.message,
+          details: insertError.details
+        });
       }
+
+      const unifiedData = rowsToUpsert[0];
 
       // Delete from unverified
       await supabase
@@ -1441,7 +1660,7 @@ export async function registerRoutes(
         .delete()
         .eq('id', id);
 
-      res.status(200).json({ message: 'Property verified successfully', data: verifiedData });
+      res.status(200).json({ success: true, message: 'Property verified successfully', data: unifiedData });
     } catch (error) {
       console.error('Error:', error);
       res.status(500).json({ message: 'Server error' });
