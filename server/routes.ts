@@ -1412,7 +1412,7 @@ export async function registerRoutes(
         query = query.eq('useremail', email);
       }
 
-      const { data, error } = await query.limit(500);
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching properties:', error);
