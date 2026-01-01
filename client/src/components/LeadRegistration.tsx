@@ -203,7 +203,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   const [totalLeads, setTotalLeads] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const ITEMS_PER_PAGE = 50;
+  const ITEMS_PER_PAGE = 10;
 
   const [formData, setFormData] = useState({
     client_mobile: '',
