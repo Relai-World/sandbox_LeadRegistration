@@ -208,8 +208,13 @@ export async function registerRoutes(
 
       // Apply search filter if provided
       if (search) {
-        // Search by client_mobile or client_name
-        query = query.or(`client_mobile.ilike.%${search}%,client_name.ilike.%${search}%,requirement_name.ilike.%${search}%`);
+        // Search by client_mobile or requirement_name. 
+        // We use a more robust or string and ensure patterns are correctly formatted.
+        const searchPattern = `%${search}%`;
+
+        // Check if we should also search by client_name (if it exists)
+        // For now, we'll keep it as it's in the interface, but we'll make it safe
+        query = query.or(`client_mobile.ilike.${searchPattern},requirement_name.ilike.${searchPattern},lead_name.ilike.${searchPattern},lead_mobile.ilike.${searchPattern}`);
       }
 
       const { data: leads, error, count } = await query
@@ -312,7 +317,7 @@ export async function registerRoutes(
 
       const { data: pocData, error } = await supabase
         .from('unified_data')
-        .select('rera_number, projectname, buildername, poc_name, poc_contact, poc_role, GRID_Score, baseprojectprice')
+        .select('*')
         .in('rera_number', limitedReraNumbers);
 
       if (error) {
@@ -330,12 +335,44 @@ export async function registerRoutes(
             projectname: item.projectname || '',
             buildername: item.buildername || '',
             grid_score: item.GRID_Score || '',
-            price_range: item.baseprojectprice || ''
+            price_range: item.baseprojectprice || '',
+            accepted_modes_of_lead_registration: item.accepted_modes_of_lead_registration || item.Accepted_Modes_of_Lead_Registration || item.mode_of_registration || item.accepted_modes || null,
+            alternative_contact: item.alternative_contact || ''
           };
         }
       });
 
       res.status(200).json({ success: true, data: pocMap });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+  // Update Alternative Contact
+  app.put('/api/lead-registration/update-alt-contact', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const { rera_number, alternative_contact } = req.body;
+
+      if (!rera_number) {
+        return res.status(400).json({ message: 'RERA number is required' });
+      }
+
+      const { error } = await supabase
+        .from('unified_data')
+        .update({ alternative_contact })
+        .eq('rera_number', rera_number);
+
+      if (error) {
+        console.error('Error updating alternative contact:', error);
+        return res.status(500).json({ message: 'Failed to update contact' });
+      }
+
+      res.status(200).json({ success: true });
     } catch (error) {
       console.error('Error:', error);
       res.status(500).json({ message: 'Server error' });
@@ -1365,7 +1402,7 @@ export async function registerRoutes(
 
       const { data: pocData, error } = await supabase
         .from('unified_data')
-        .select('rera_number, projectname, buildername, poc_name, poc_contact, poc_role, GRID_Score, baseprojectprice')
+        .select('*')
         .in('rera_number', limitedReraNumbers);
 
       if (error) {
@@ -1383,7 +1420,8 @@ export async function registerRoutes(
             projectname: item.projectname || '',
             buildername: item.buildername || '',
             grid_score: item.GRID_Score || '',
-            price_range: item.baseprojectprice || ''
+            price_range: item.baseprojectprice || '',
+            accepted_modes_of_lead_registration: item.accepted_modes_of_lead_registration || item.Accepted_Modes_of_Lead_Registration || item.mode_of_registration || item.accepted_modes || null
           };
         }
       });
@@ -1748,9 +1786,9 @@ export async function registerRoutes(
       }
 
       // Valid enum values based on database schema
-      const projectTypes = ['Apartment', 'Villa', 'Plot', 'Commercial', 'Independent House', 'Row House'];
-      const communityTypes = ['Gated Community', 'Non-Gated Community', 'Standalone', 'Semi Gated Community'];
-      const constructionStatuses = ['Pre-Launch', 'Under Construction', 'Ongoing', 'Ready to Move in', 'Nearing Possession', 'Completed'];
+      const projectTypes = ['Apartment', 'Villa', 'Plot', 'Commercial', 'Independent House', 'Row House', 'Villa Apartment', 'Plotting'];
+      const communityTypes = ['Gated Community', 'Non-Gated Community', 'Standalone', 'Semi Gated Community', 'Semi-Gated Community'];
+      const constructionStatuses = ['Pre-Launch', 'Under Construction', 'Ongoing', 'Ready to Move in', 'Nearing Possession', 'Completed', 'About to RTM', 'RTM'];
       const powerBackupTypes = ['Full', 'Partial', 'None', 'DG Backup'];
       const visitorParkingTypes = ['yes', 'no'];
       const groundMovementTypes = ['yes', 'no'];
@@ -1823,6 +1861,11 @@ export async function registerRoutes(
         after_agreement_of_sale_what_is_payout_time_period: sanitizeNumeric(propertyData.After_Agreement_of_Sale_Payout_Time || propertyData.after_agreement_of_sale_what_is_payout_time_period, 0),
         turnaround_time_for_lead_acknowledgement: sanitizeNumeric(propertyData.Turnaround_Time_for_Lead || propertyData.turnaround_time_for_lead_acknowledgement, 0),
         is_there_validity_period_for_registered_lead: sanitizeEnum(propertyData.Is_There_Validity_Period || propertyData.is_there_validity_period_for_registered_lead, yesNoTypes, 'no'),
+        is_lead_registration_required_before_site_visit: propertyData.Is_lead_Registration_required_before_Site_visit || propertyData.is_lead_registration_required_before_site_visit || null,
+        accepted_modes_of_lead_registration: propertyData.Accepted_Modes_of_Lead_Registration || propertyData.accepted_modes_of_lead_registration || null,
+        notes_comments_on_lead_registration_workflow: propertyData.Notes_Comments_on_lead_registration_workflow || propertyData.notes_comments_on_lead_registration_workflow || null,
+        validity_period_value: propertyData.validity_period_value || null,
+        cp: propertyData.POC_CP || propertyData.cp || null,
         projectbrochure: sanitizeText(propertyData.ProjectBrochure || propertyData.projectbrochure),
         pricesheet_link_1: sanitizeText(propertyData.Pricesheet_Link || propertyData.pricesheet_link_1),
         city: sanitizeText(propertyData.City || propertyData.city),

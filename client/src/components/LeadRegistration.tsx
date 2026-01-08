@@ -79,6 +79,10 @@ interface ShortlistedPropertyData {
   preferential_location_charges_conditions?: string;
   no_of_passenger_lift?: string;
   visitor_parking?: string;
+  accepted_modes_of_lead_registration?: any;
+  alternative_contact?: string;
+
+  Accepted_Modes_of_Lead_Registration?: any;
 }
 
 interface ShortlistedProperty {
@@ -91,13 +95,24 @@ interface ShortlistedProperty {
   rera_number?: string;
   projectname?: string;
   buildername?: string;
+  status?: string;
+  outcome?: string;
 }
+
+const OUTCOME_OPTIONS = [
+  { value: 'fresh', label: 'Lead Accepted Fresh' },
+  { value: 'duplicate', label: 'Duplicate' },
+  { value: 'register_on_site_visit', label: 'Register on Site Visit' },
+  { value: 'not_accepting', label: 'Not Accepting' },
+];
 
 interface ClientRequirement {
   id: number;
   created_at: string;
   client_mobile: string;
   client_name?: string;
+  lead_name?: string;
+  lead_mobile?: string;
   requirement_number: number;
   requirement_name: string;
   preferences: {
@@ -148,7 +163,110 @@ interface PocData {
   preferential_location_charges_conditions?: string;
   no_of_passenger_lift?: string;
   visitor_parking?: string;
+  accepted_modes_of_lead_registration?: any;
+  alternative_contact?: string;
 }
+
+const AlternativeContactCell = ({ initialValue, reraNumber, onSave }: { initialValue: string, reraNumber: string, onSave: (val: string) => Promise<void> }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(initialValue);
+  const [loading, setLoading] = useState(false);
+
+  // Update local state if initialValue changes (e.g. from refresh)
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
+
+  const handleSave = async () => {
+    setLoading(true);
+    await onSave(value);
+    setLoading(false);
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-1">
+        <Input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="h-7 text-xs w-full min-w-[120px]"
+          placeholder="Enter Email or Phone"
+          autoFocus
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 text-green-600"
+          onClick={handleSave}
+          disabled={loading}
+        >
+          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 text-red-500"
+          onClick={() => {
+            setValue(initialValue);
+            setIsEditing(false);
+          }}
+        >
+          <X className="w-3 h-3" />
+        </Button>
+      </div>
+    );
+  }
+
+  // Display Mode
+  let content = <span className="text-gray-400 italic">Add contact...</span>;
+  if (value) {
+    // Check if email
+    if (value.includes('@')) {
+      content = (
+        <a
+          href={`mailto:${value}`}
+          onClick={(e) => e.stopPropagation()}
+          className="text-blue-600 hover:underline flex items-center gap-1 truncate max-w-[150px]"
+          title={value}
+        >
+          <Mail className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{value}</span>
+        </a>
+      );
+    } else {
+      // Assume phone (WhatsApp)
+      const cleanNumber = value.replace(/\D/g, '');
+      content = (
+        <a
+          href={`https://wa.me/${cleanNumber}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-green-700 hover:underline flex items-center gap-1 truncate max-w-[150px]"
+          title={value}
+        >
+          <MessageCircle className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{value}</span>
+        </a>
+      );
+    }
+  }
+
+  return (
+    <div className="group flex items-center justify-between gap-2 min-h-[28px] cursor-pointer hover:bg-gray-50 p-1 rounded" onClick={() => setIsEditing(true)}>
+      <div className="flex-1 overflow-hidden">{content}</div>
+      <Edit className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 flex-shrink-0" />
+    </div>
+  );
+};
 
 const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   const [leads, setLeads] = useState<ClientRequirement[]>([]);
@@ -356,8 +474,8 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       const leadId = Array.from(selectedLeadIds)[0];
       const lead = leads.find(l => l.id === leadId);
       if (lead) {
-        setLeadName(lead.client_name || '');
-        setLeadMobile(lead.client_mobile || '');
+        setLeadName(lead.lead_name || lead.client_name || '');
+        setLeadMobile(lead.lead_mobile || lead.client_mobile || '');
       } else {
         setLeadName('');
         setLeadMobile('');
@@ -568,22 +686,16 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       const leadId = Array.from(selectedLeadIds)[0];
       const lead = leads.find(l => l.id === leadId);
       if (lead) {
-        name = lead.client_name || '';
-        mobile = lead.client_mobile || '';
+        name = lead.lead_name || lead.client_name || '';
+        mobile = lead.lead_mobile || lead.client_mobile || '';
       }
     }
 
-    if (!name || !mobile) {
-      // Pre-fill with what we have and open modal
-      setLeadName(name);
-      setLeadMobile(mobile);
-      setPendingShareLink(true);
-      setLeadModalOpen(true);
-      return;
-    }
-
-    // Generate share link directly with available info
-    await generateShareLinkWithInfo(name, mobile);
+    // Always open modal to allow editing details
+    setLeadName(name);
+    setLeadMobile(mobile);
+    setPendingShareLink(true);
+    setLeadModalOpen(true);
   };
 
   const generateShareLinkWithInfo = async (name: string, mobile: string) => {
@@ -602,14 +714,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
         if (!isNaN(leadId)) selectedLeadIds.add(leadId);
       });
 
-      // If only one lead selected, use their mobile number from database
-      if (selectedLeadIds.size === 1) {
-        const leadId = Array.from(selectedLeadIds)[0];
-        const lead = leads.find(l => l.id === leadId);
-        if (lead && lead.client_mobile) {
-          leadMobileFromDb = lead.client_mobile;
-        }
-      }
+
 
       leads.forEach(lead => {
         (lead.shortlisted_properties ?? []).forEach(p => {
@@ -947,6 +1052,85 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
     return 'Not specified';
   };
 
+  const getRegistrationMode = (modes: any) => {
+    if (!modes) return 'N/A';
+
+    // Handle if modes is a JSON string
+    let parsedModes = modes;
+    if (typeof modes === 'string') {
+      try {
+        parsedModes = JSON.parse(modes);
+      } catch (e) {
+        return 'N/A';
+      }
+    }
+
+    // Handle array wrapping
+    if (Array.isArray(parsedModes) && parsedModes.length > 0) {
+      parsedModes = parsedModes[0];
+    }
+
+    const items: React.ReactNode[] = [];
+
+    // Check known keys
+    if (parsedModes?.Email?.enabled === 'yes' && parsedModes.Email.details) {
+      items.push(
+        <a
+          key="email"
+          href={`mailto:${parsedModes.Email.details}`}
+          className="text-blue-600 hover:underline inline-flex items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Mail className="w-3 h-3" />
+          {parsedModes.Email.details}
+        </a>
+      );
+    }
+
+    if (parsedModes?.Web_Form?.enabled === 'yes' && parsedModes.Web_Form.details) {
+      items.push(<span key="web">Web Form</span>);
+    }
+
+    if (parsedModes?.WhatsApp?.enabled === 'yes' && parsedModes.WhatsApp.details) {
+      const cleanNumber = parsedModes.WhatsApp.details.replace(/\D/g, '');
+      items.push(
+        <a
+          key="whatsapp"
+          href={`https://wa.me/${cleanNumber}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 hover:underline text-gray-700 hover:text-green-700"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <MessageCircle className="w-3 h-3 text-green-600" />
+          WhatsApp: {parsedModes.WhatsApp.details}
+        </a>
+      );
+    }
+
+    if (parsedModes?.CRM_App_Access?.enabled === 'yes' && parsedModes.CRM_App_Access.details) {
+      items.push(<span key="crm">CRM App</span>);
+    }
+
+    // Handle During_Site_Visit which is a simple string "yes"/"no"
+    if (parsedModes?.During_Site_Visit === 'yes' || parsedModes?.During_Site_Visit === 'true') {
+      items.push(<span key="site">Site Visit</span>);
+    }
+
+    if (items.length === 0) return 'N/A';
+
+    return (
+      <div className="flex flex-wrap gap-2 items-center">
+        {items.map((item, index) => (
+          <React.Fragment key={index}>
+            {index > 0 && <span className="text-gray-400">, </span>}
+            {item}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  };
+
   if (viewingLead) {
     return (
       <div className="space-y-6">
@@ -1240,6 +1424,65 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
     );
   }
 
+  const updateLeadProjectStatus = async (leadId: number, propertyIndex: number, newStatus: string) => {
+    const lead = leads.find(l => l.id === leadId);
+    if (!lead) return;
+
+    const updatedProperties = [...(lead.shortlisted_properties || [])];
+
+    if (updatedProperties[propertyIndex]) {
+      updatedProperties[propertyIndex] = {
+        ...updatedProperties[propertyIndex],
+        status: newStatus
+      };
+    }
+
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, shortlisted_properties: updatedProperties } : l));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/lead-registration/${leadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shortlisted_properties: updatedProperties })
+      });
+
+      if (!response.ok) throw new Error('Failed to update status');
+    } catch (error) {
+      console.error('Error updating project status:', error);
+      toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
+    }
+  };
+
+  const updateLeadProjectOutcome = async (leadId: number, propertyIndex: number, newOutcome: string) => {
+    const lead = leads.find(l => l.id === leadId);
+    if (!lead) return;
+
+    const updatedProperties = [...(lead.shortlisted_properties || [])];
+
+    if (updatedProperties[propertyIndex]) {
+      updatedProperties[propertyIndex] = {
+        ...updatedProperties[propertyIndex],
+        outcome: newOutcome
+      };
+    }
+
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, shortlisted_properties: updatedProperties } : l));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/lead-registration/${leadId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shortlisted_properties: updatedProperties })
+      });
+
+      if (!response.ok) throw new Error('Failed to update outcome');
+    } catch (error) {
+      console.error('Error updating project outcome:', error);
+      toast({ title: "Error", description: "Failed to update outcome", variant: "destructive" });
+    }
+  };
+
+
   return (
     <div className="h-[calc(100vh-5rem)] flex flex-col">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3">
@@ -1248,16 +1491,28 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
           <p className="text-gray-500 text-sm">View leads with their shortlisted properties</p>
         </div>
         <div className="flex gap-2">
-          <div className="relative">
+          <div className="relative group">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
               placeholder="Search by mobile, name..."
-              className="pl-10 w-56 h-9"
+              className="pl-10 pr-10 w-64 h-9"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               data-testid="input-search-leads"
             />
+            {searchTerm && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setCurrentPage(1);
+                  fetchLeads(1, '');
+                }}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
           <Button variant="outline" size="sm" onClick={handleSearch} disabled={loading} data-testid="button-search">
             <Search className="w-4 h-4" />
@@ -1304,7 +1559,6 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Lead Name</th>
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Mobile</th>
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Properties</th>
-                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1343,8 +1597,8 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                               <ChevronRight className="w-4 h-4" />
                             )}
                           </td>
-                          <td className="px-3 py-3 text-gray-400 italic text-sm">
-                            {/* Empty until Zoho connected */}
+                          <td className="px-3 py-3 text-gray-900 font-medium">
+                            {lead.lead_name || lead.client_name || '-'}
                           </td>
                           <td className="px-3 py-3 text-gray-900 font-medium">
                             {lead.client_mobile}
@@ -1353,21 +1607,6 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                             <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium">
                               {shortlistedList.length} {shortlistedList.length === 1 ? 'property' : 'properties'}
                             </span>
-                          </td>
-                          <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                            <select
-                              value={leadStatuses[lead.id] || 'yet_to_be_done'}
-                              onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
-                              className={`text-xs font-medium px-2 py-1 rounded-md border-0 cursor-pointer ${STATUS_OPTIONS.find(s => s.value === (leadStatuses[lead.id] || 'yet_to_be_done'))?.color || 'bg-gray-100 text-gray-700'
-                                }`}
-                              data-testid={`select-status-${lead.id}`}
-                            >
-                              {STATUS_OPTIONS.map(option => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
                           </td>
                         </tr>
                         {isExpanded && (
@@ -1380,10 +1619,14 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                                       <th className="w-8 px-2"></th>
                                       <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">Project Name</th>
                                       <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">Builder Name</th>
-                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">RERA Number</th>
+                                      {/* <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">RERA Number</th> */}
                                       <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">POC Name</th>
                                       <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">POC Contact</th>
                                       <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">POC Role</th>
+                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">Reg. Mode</th>
+                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase w-48">Alt. Contact</th>
+                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">Status</th>
+                                      <th className="text-left px-3 py-2 font-medium text-gray-600 text-xs uppercase">Outcome</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -1417,9 +1660,9 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                                           <td className="px-3 py-2 text-gray-700">
                                             {toTitleCase(builderName) || 'N/A'}
                                           </td>
-                                          <td className="px-3 py-2 font-mono text-gray-600 text-xs">
+                                          {/* <td className="px-3 py-2 font-mono text-gray-600 text-xs">
                                             {reraNumber || 'N/A'}
-                                          </td>
+                                          </td> */}
                                           <td className="px-3 py-2 text-gray-700">
                                             {pocInfo?.poc_name || 'N/A'}
                                           </td>
@@ -1428,6 +1671,80 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                                           </td>
                                           <td className="px-3 py-2 text-gray-700">
                                             {pocInfo?.poc_role || 'N/A'}
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-700">
+                                            {getRegistrationMode(
+                                              pocInfo?.accepted_modes_of_lead_registration ||
+                                              property.property?.accepted_modes_of_lead_registration ||
+                                              property.property?.Accepted_Modes_of_Lead_Registration
+                                            )}
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-700">
+                                            <AlternativeContactCell
+                                              initialValue={pocInfo?.alternative_contact || property.property?.alternative_contact || ''}
+                                              reraNumber={reraNumber || ''}
+                                              onSave={async (value) => {
+                                                if (!reraNumber) return;
+                                                try {
+                                                  const response = await fetch('/api/lead-registration/update-alt-contact', {
+                                                    method: 'PUT',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ rera_number: reraNumber, alternative_contact: value })
+                                                  });
+                                                  if (!response.ok) throw new Error('Failed to update');
+                                                  // Optimistically update local state if needed, or rely on re-fetch
+                                                  // ideally refresh data here
+                                                } catch (error) {
+                                                  console.error('Error saving alt contact:', error);
+                                                  toast({ title: 'Error', description: 'Failed to update alternative contact', variant: 'destructive' });
+                                                }
+                                              }}
+                                            />
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-700">
+                                            <select
+                                              value={property.status || ''}
+                                              onChange={(e) => {
+                                                // Find the index in the original rawShortlistedList
+                                                const originalIndex = rawShortlistedList.findIndex(p =>
+                                                  (p.property?.rera_number || p.rera_number) === reraNumber &&
+                                                  (p.property?.projectname || p.projectname || p.propertyName) === projectName
+                                                );
+                                                if (originalIndex !== -1) {
+                                                  updateLeadProjectStatus(lead.id, originalIndex, e.target.value);
+                                                }
+                                              }}
+                                              className="text-xs font-medium px-2 py-1 rounded-md border border-gray-200 cursor-pointer bg-white text-gray-700 w-full"
+                                            >
+                                              <option value="">Select Status</option>
+                                              {STATUS_OPTIONS.map(option => (
+                                                <option key={option.value} value={option.value}>
+                                                  {option.label}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-700">
+                                            <select
+                                              value={property.outcome || ''}
+                                              onChange={(e) => {
+                                                const originalIndex = rawShortlistedList.findIndex(p =>
+                                                  (p.property?.rera_number || p.rera_number) === reraNumber &&
+                                                  (p.property?.projectname || p.projectname || p.propertyName) === projectName
+                                                );
+                                                if (originalIndex !== -1) {
+                                                  updateLeadProjectOutcome(lead.id, originalIndex, e.target.value);
+                                                }
+                                              }}
+                                              className="text-xs font-medium px-2 py-1 rounded-md border border-gray-200 cursor-pointer bg-white text-gray-700 w-full"
+                                            >
+                                              <option value="">Select Outcome</option>
+                                              {OUTCOME_OPTIONS.map(option => (
+                                                <option key={option.value} value={option.value}>
+                                                  {option.label}
+                                                </option>
+                                              ))}
+                                            </select>
                                           </td>
                                         </tr>
                                       );

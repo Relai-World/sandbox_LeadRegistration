@@ -44,7 +44,7 @@ export const BuilderReputation: React.FC<BuilderReputationProps> = ({ data, onUp
 
   return (
     <div className="space-y-6">
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Builder Information</CardTitle>
         </CardHeader>
@@ -81,7 +81,7 @@ export const BuilderReputation: React.FC<BuilderReputationProps> = ({ data, onUp
             <p className="text-xs text-gray-500">City where the builder company was founded</p>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       <Card>
         <CardHeader>

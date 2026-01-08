@@ -87,7 +87,7 @@ export const FinancialCompliance: React.FC<FinancialComplianceProps> = ({ data, 
             <p className="text-xs lg:text-sm text-gray-500">Additional cost for car parking space</p>
           </div>
 
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label htmlFor="commissionPercentage" className="text-sm font-medium">Commission Percentage (%)</Label>
             <Input
               id="commissionPercentage"
@@ -102,8 +102,8 @@ export const FinancialCompliance: React.FC<FinancialComplianceProps> = ({ data, 
             />
             {errors.commissionPercentage && <p className="text-red-500 text-xs mt-1">{errors.commissionPercentage}</p>}
             <p className="text-xs lg:text-sm text-gray-500">Commission percentage for agents (Range: 0-100%)</p>
-          </div>
-
+          </div> */}
+{/* 
           <div className="space-y-2">
             <Label htmlFor="payoutPeriod" className="text-sm font-medium">Payout Period (Days)</Label>
             <Input
@@ -119,7 +119,7 @@ export const FinancialCompliance: React.FC<FinancialComplianceProps> = ({ data, 
             />
             {errors.payoutPeriod && <p className="text-red-500 text-xs mt-1">{errors.payoutPeriod}</p>}
             <p className="text-xs lg:text-sm text-gray-500">Payout period after agreement of sale (Range: 1-365 days)</p>
-          </div>
+          </div> */}
 
           {/* <div className="space-y-2">
             <Label htmlFor="homeLoan">Home Loan Availability</Label>
