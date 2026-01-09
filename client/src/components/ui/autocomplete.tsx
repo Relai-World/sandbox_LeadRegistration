@@ -26,6 +26,7 @@ interface AutocompleteProps {
   disabled?: boolean
   className?: string
   error?: boolean
+  strict?: boolean
 }
 
 export function Autocomplete({
@@ -38,6 +39,7 @@ export function Autocomplete({
   disabled = false,
   className,
   error = false,
+  strict = false,
 }: AutocompleteProps) {
   const [open, setOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
@@ -54,24 +56,41 @@ export function Autocomplete({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && searchValue) {
       // Find exact match from options (case-insensitive search)
-      const exactMatch = options.find(opt => 
+      const exactMatch = options.find(opt =>
         opt.toLowerCase() === searchValue.toLowerCase()
       );
-      // Use exact match if found, otherwise use the search value
-      onValueChange(exactMatch || searchValue)
-      setOpen(false)
-      setSearchValue("")
+
+      if (strict) {
+        if (exactMatch) {
+          onValueChange(exactMatch)
+          setOpen(false)
+          setSearchValue("")
+        }
+      } else {
+        // Use exact match if found, otherwise use the search value
+        onValueChange(exactMatch || searchValue)
+        setOpen(false)
+        setSearchValue("")
+      }
     }
   }
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen && searchValue) {
       // Find exact match from options (case-insensitive search)
-      const exactMatch = options.find(opt => 
+      const exactMatch = options.find(opt =>
         opt.toLowerCase() === searchValue.toLowerCase()
       );
-      // Use exact match if found, otherwise use the search value
-      onValueChange(exactMatch || searchValue)
+
+      if (strict) {
+        if (exactMatch) {
+          onValueChange(exactMatch)
+        }
+        // In strict mode, if no exact match, we don't update value on blur/close
+      } else {
+        // Use exact match if found, otherwise use the search value
+        onValueChange(exactMatch || searchValue)
+      }
       setSearchValue("")
     }
     setOpen(newOpen)
@@ -111,9 +130,11 @@ export function Autocomplete({
               {searchValue ? (
                 <div className="py-6 text-center text-sm">
                   <p className="text-muted-foreground">{emptyMessage}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Press <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Enter</kbd> to use "{searchValue}"
-                  </p>
+                  {!strict && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Press <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">Enter</kbd> to use "{searchValue}"
+                    </p>
+                  )}
                 </div>
               ) : (
                 emptyMessage

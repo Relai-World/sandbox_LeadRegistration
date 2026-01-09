@@ -253,7 +253,7 @@ export async function registerRoutes(
     }
 
     try {
-      const { client_mobile, requirement_name, preferences, matched_properties, shortlisted_properties, site_visits } = req.body;
+      const { client_mobile, requirement_name, preferences, matched_properties, shortlisted_properties, site_visits, user_id, session } = req.body;
 
       if (!client_mobile) {
         return res.status(400).json({ message: 'Client mobile number is required' });
@@ -269,13 +269,31 @@ export async function registerRoutes(
 
       let nextRequirementNumber = 1;
       if (existingLeads && existingLeads.length > 0) {
-        nextRequirementNumber = existingLeads[0].requirement_number + 1;
+        nextRequirementNumber = (existingLeads[0].requirement_number || 0) + 1;
+      }
+
+      // Get next count for this user_id
+      let nextCount = 1;
+      if (user_id && user_id !== 'unknown') {
+        const { data: userLeads } = await supabase
+          .from('client_Requirements')
+          .select('count')
+          .eq('user_id', user_id)
+          .order('count', { ascending: false })
+          .limit(1);
+
+        if (userLeads && userLeads.length > 0) {
+          nextCount = (userLeads[0].count || 0) + 1;
+        }
       }
 
       const leadData = {
         client_mobile,
         requirement_number: nextRequirementNumber,
         requirement_name: requirement_name || '',
+        user_id: user_id || null,
+        session: session || null,
+        count: nextCount,
         preferences: preferences || {},
         matched_properties: matched_properties || [],
         shortlisted_properties: shortlisted_properties || [],
@@ -320,12 +338,36 @@ export async function registerRoutes(
         .select('*')
         .in('rera_number', limitedReraNumbers);
 
-      if (error) {
-        console.error('Error fetching POC details:', error);
-        return res.status(500).json({ message: 'Database error' });
-      }
+      const { data: unverifiedPocData, error: unverifiedError } = await supabase
+        .from("Unverified_Properties")
+        .select("*")
+        .in("rera_number", limitedReraNumbers);
 
+      if (error || unverifiedError) {
+        console.error("Error fetching POC details:", error || unverifiedError);
+        return res.status(500).json({ message: "Database error" });
+      }
       const pocMap: Record<string, any> = {};
+
+      // First populate with unverified data
+      (unverifiedPocData || []).forEach((item: any) => {
+        if (item.rera_number) {
+          pocMap[item.rera_number] = {
+            poc_name: item.poc_name || '',
+            poc_contact: item.poc_contact || '',
+            poc_role: item.poc_role || '',
+            projectname: item.projectname || '',
+            buildername: item.buildername || '',
+            grid_score: item.GRID_Score || '',
+            price_range: item.baseprojectprice || '',
+            accepted_modes_of_lead_registration: item.accepted_modes_of_lead_registration || item.Accepted_Modes_of_Lead_Registration || item.mode_of_registration || item.accepted_modes || null,
+            alternative_contact: item.alternative_contact || '',
+            project_type: item.project_type || ''
+          };
+        }
+      });
+
+      // Then overwrite with verified data (taking precedence)
       (pocData || []).forEach((item: any) => {
         if (item.rera_number) {
           pocMap[item.rera_number] = {
@@ -337,7 +379,8 @@ export async function registerRoutes(
             grid_score: item.GRID_Score || '',
             price_range: item.baseprojectprice || '',
             accepted_modes_of_lead_registration: item.accepted_modes_of_lead_registration || item.Accepted_Modes_of_Lead_Registration || item.mode_of_registration || item.accepted_modes || null,
-            alternative_contact: item.alternative_contact || ''
+            alternative_contact: item.alternative_contact || '',
+            project_type: item.project_type || ''
           };
         }
       });
@@ -568,6 +611,24 @@ export async function registerRoutes(
         }
       }
 
+      // Fetch builder_data values as well
+      const { data: builderData, error: builderError } = await supabase
+        .from('builder_data')
+        .select('rera_builder_name, standard_builder_name, rera_numbers, project_names');
+
+      if (builderError) {
+        console.error('Error fetching builder dropdown values:', builderError);
+      }
+
+      // Fetch unverified data values
+      const { data: unverifiedDataForDropdown, error: unverifiedErrorForDropdown } = await supabase
+        .from('Unverified_Properties')
+        .select('projectname, buildername, rera_number, city, state, areaname');
+
+      if (unverifiedErrorForDropdown) {
+        console.error('Error fetching unverified dropdown values:', unverifiedErrorForDropdown);
+      }
+
       const projectNamesSet = new Set<string>();
       const builderNamesSet = new Set<string>();
       const reraNumbersSet = new Set<string>();
@@ -575,6 +636,7 @@ export async function registerRoutes(
       const statesSet = new Set<string>();
       const areasSet = new Set<string>();
 
+      // Process unified_data
       allData.forEach((item: any) => {
         if (item.projectname) projectNamesSet.add(String(item.projectname).trim());
         if (item.buildername) builderNamesSet.add(String(item.buildername).trim());
@@ -583,6 +645,52 @@ export async function registerRoutes(
         if (item.state) statesSet.add(String(item.state).trim());
         if (item.areaname) areasSet.add(String(item.areaname).trim());
       });
+
+      // Process builder_data
+      if (builderData) {
+        builderData.forEach((item: any) => {
+          if (item.rera_builder_name) builderNamesSet.add(String(item.rera_builder_name).trim());
+          if (item.standard_builder_name) builderNamesSet.add(String(item.standard_builder_name).trim());
+
+          if (item.rera_numbers) {
+            const numbers = Array.isArray(item.rera_numbers) ? item.rera_numbers : [item.rera_numbers];
+            numbers.forEach((rn: any) => {
+              if (rn) {
+                // Split by comma in case multiple numbers are in one string
+                String(rn).split(',').forEach(part => {
+                  const trimmed = part.trim();
+                  if (trimmed) reraNumbersSet.add(trimmed);
+                });
+              }
+            });
+          }
+
+          if (item.project_names) {
+            const names = Array.isArray(item.project_names) ? item.project_names : [item.project_names];
+            names.forEach((pn: any) => {
+              if (pn) {
+                // Split by comma in case multiple names are in one string
+                String(pn).split(',').forEach(part => {
+                  const trimmed = part.trim();
+                  if (trimmed) projectNamesSet.add(trimmed);
+                });
+              }
+            });
+          }
+        });
+      }
+
+      // Process unverified_data from Unverified_Properties table
+      if (unverifiedDataForDropdown) {
+        unverifiedDataForDropdown.forEach((item: any) => {
+          if (item.projectname) projectNamesSet.add(String(item.projectname).trim());
+          if (item.buildername) builderNamesSet.add(String(item.buildername).trim());
+          if (item.rera_number) reraNumbersSet.add(String(item.rera_number).trim());
+          if (item.city) citiesSet.add(String(item.city).trim());
+          if (item.state) statesSet.add(String(item.state).trim());
+          if (item.areaname) areasSet.add(String(item.areaname).trim());
+        });
+      }
 
       res.status(200).json({
         success: true,
@@ -692,7 +800,7 @@ export async function registerRoutes(
       Validity_Period_Value: propertyData.validity_period_value,
       Person_to_Confirm_Registration: propertyData.person_to_confirm_registration,
       Notes_Comments_on_Lead_Registration_Workflow: propertyData.notes_comments_on_lead_registration_workflow,
-      Accepted_Modes_of_Lead_Registration: propertyData.accepted_modes_of_lead_registration,
+      Accepted_Modes_of_Lead_Registration: propertyData.accepted_modes_of_lead_registration || propertyData.Accepted_Modes_of_Lead_Registration || propertyData.mode_of_registration || propertyData.accepted_modes,
       POC_Name: propertyData.poc_name,
       POC_Contact: propertyData.poc_contact,
       POC_Role: propertyData.poc_role,
@@ -786,7 +894,86 @@ export async function registerRoutes(
       }
 
       if (!data || data.length === 0) {
-        console.log('Property not found in either Unverified_Properties or unified_data table');
+        console.log('Property not found in either Unverified_Properties or unified_data table. Searching in builder_data...');
+
+        // Step 3: Search in builder_data table
+        // Fetch all builders (assuming the list is manageable) and search for the project name or RERA number
+        // This is more flexible than 'contains' when dealing with split strings
+        const { data: bData, error: bError } = await supabase.from('builder_data').select('*');
+
+        if (bError) {
+          console.error('Error fetching from builder_data:', bError);
+        } else if (bData && bData.length > 0) {
+          // Find the builder and the specific index of the project/RERA
+          let foundIndex = -1;
+          const builder = bData.find(b => {
+            if (projectName) {
+              const names = Array.isArray(b.project_names) ? b.project_names : (b.project_names ? [b.project_names] : []);
+              for (let i = 0; i < names.length; i++) {
+                const parts = String(names[i]).split(',').map(s => s.trim().toLowerCase());
+                if (parts.includes(String(projectName).toLowerCase())) {
+                  foundIndex = i;
+                  return true;
+                }
+              }
+            }
+            if (reraNumber) {
+              const numbers = Array.isArray(b.rera_numbers) ? b.rera_numbers : (b.rera_numbers ? [b.rera_numbers] : []);
+              for (let i = 0; i < numbers.length; i++) {
+                const parts = String(numbers[i]).split(',').map(s => s.trim().toLowerCase());
+                if (parts.includes(String(reraNumber).toLowerCase())) {
+                  foundIndex = i;
+                  return true;
+                }
+              }
+            }
+            return false;
+          });
+
+          if (builder) {
+            console.log(`Found match in builder_data for builder: ${builder.standard_builder_name} at index: ${foundIndex}`);
+
+            // Link project name and RERA number by index
+            const bProjectNames = Array.isArray(builder.project_names) ? builder.project_names : (builder.project_names ? [builder.project_names] : []);
+            const bReraNumbers = Array.isArray(builder.rera_numbers) ? builder.rera_numbers : (builder.rera_numbers ? [builder.rera_numbers] : []);
+
+            // Handle the case where the value used for search might be part of a comma-separated string
+            let linkedProjectName = projectName || '';
+            let linkedReraNumber = reraNumber || '';
+
+            if (foundIndex !== -1) {
+              if (!linkedProjectName && bProjectNames[foundIndex]) {
+                linkedProjectName = String(bProjectNames[foundIndex]);
+              }
+              if (!linkedReraNumber && bReraNumbers[foundIndex]) {
+                linkedReraNumber = String(bReraNumbers[foundIndex]);
+              }
+            }
+
+            // Create a minimal property object from builder data
+            const minimalProperty: any = {
+              projectname: linkedProjectName,
+              buildername: builder.standard_builder_name || builder.rera_builder_name || '',
+              rera_number: linkedReraNumber,
+              builder_age: builder.builder_age,
+              builder_total_properties: builder.builder_total_properties,
+              builder_upcoming_properties: builder.builder_upcoming_properties,
+              builder_completed_properties: builder.builder_completed_properties,
+              builder_ongoing_projects: builder.builder_ongoing_projects,
+              builder_origin_city: builder.builder_origin_city,
+              builder_operating_locations: builder.builder_operating_locations
+            };
+
+            const mappedData = mapPropertyToFrontendFormat(minimalProperty);
+
+            return res.status(200).json({
+              success: true,
+              message: 'Basic details fetched from builder master data',
+              data: mappedData,
+              source: 'builder_data'
+            });
+          }
+        }
         return res.status(404).json({ success: false, message: 'Property not found' });
       }
 
@@ -930,7 +1117,8 @@ export async function registerRoutes(
         After_agreement_of_sale_what_is_payout_time_period, configurations,
         POC_Name, POC_Contact, POC_Role, UserEmail, BaseProjectPrice,
         CommunityType, Total_land_Area, Number_of_Towers, Total_Number_of_Units,
-        Construction_Status, Price_per_sft
+        Construction_Status, Price_per_sft, ProjectBrochure, PriceSheetLink,
+        ProjectLocation, City, State, Accepted_Modes_of_Lead_Registration
       } = req.body;
 
       if (!UserEmail) {
@@ -966,6 +1154,12 @@ export async function registerRoutes(
         total_number_of_units: Total_Number_of_Units || (Number_of_Floors * Number_of_Flats_Per_Floor),
         construction_status: Construction_Status || 'Ongoing',
         price_per_sft: Price_per_sft || 0,
+        projectbrochure: ProjectBrochure || null,
+        pricesheet_link_1: PriceSheetLink || null,
+        projectlocation: ProjectLocation || null,
+        city: City || null,
+        state: State || null,
+        accepted_modes_of_lead_registration: Accepted_Modes_of_Lead_Registration || null,
         status: 'Unverified',
         createdat: new Date().toISOString(),
         updatedat: new Date().toISOString()
@@ -1230,7 +1424,7 @@ export async function registerRoutes(
     }
 
     try {
-      const { client_mobile, requirement_name, preferences, matched_properties, shortlisted_properties, site_visits } = req.body;
+      const { client_mobile, requirement_name, preferences, matched_properties, shortlisted_properties, site_visits, user_id, session } = req.body;
 
       if (!client_mobile) {
         return res.status(400).json({ message: 'Client mobile number is required' });
@@ -1246,13 +1440,31 @@ export async function registerRoutes(
 
       let nextRequirementNumber = 1;
       if (existingLeads && existingLeads.length > 0) {
-        nextRequirementNumber = existingLeads[0].requirement_number + 1;
+        nextRequirementNumber = (existingLeads[0].requirement_number || 0) + 1;
+      }
+
+      // Get next count for this user_id
+      let nextCount = 1;
+      if (user_id && user_id !== 'unknown') {
+        const { data: userLeads } = await supabase
+          .from('client_Requirements')
+          .select('count')
+          .eq('user_id', user_id)
+          .order('count', { ascending: false })
+          .limit(1);
+
+        if (userLeads && userLeads.length > 0) {
+          nextCount = (userLeads[0].count || 0) + 1;
+        }
       }
 
       const leadData = {
         client_mobile,
         requirement_number: nextRequirementNumber,
         requirement_name: requirement_name || '',
+        user_id: user_id || null,
+        session: session || null,
+        count: nextCount,
         preferences: preferences || {},
         matched_properties: matched_properties || [],
         shortlisted_properties: shortlisted_properties || [],
@@ -1737,7 +1949,7 @@ export async function registerRoutes(
   // === PROPERTIES SAVE (for ProjectForm submission) ===
 
   // Helper functions to sanitize values for database
-  const sanitizeNumeric = (value: any, defaultValue: number = 0): number | null => {
+  const sanitizeNumeric = (value: any, defaultValue: number | null = null): number | null => {
     if (value === null || value === undefined || value === '' || value === '---' || value === 'N/A') {
       return defaultValue;
     }
@@ -1745,7 +1957,7 @@ export async function registerRoutes(
     return isNaN(num) ? defaultValue : num;
   };
 
-  const sanitizeInteger = (value: any, defaultValue: number = 0): number | null => {
+  const sanitizeInteger = (value: any, defaultValue: number | null = null): number | null => {
     if (value === null || value === undefined || value === '' || value === '---' || value === 'N/A') {
       return defaultValue;
     }
@@ -1760,7 +1972,7 @@ export async function registerRoutes(
     return String(value);
   };
 
-  const sanitizeEnum = (value: any, validValues: string[], defaultValue: string): string => {
+  const sanitizeEnum = (value: any, validValues: string[], defaultValue: string | null = null): string | null => {
     if (!value || value === '---' || value === '') return defaultValue;
     const strValue = String(value);
     return validValues.includes(strValue) ? strValue : defaultValue;
@@ -1792,84 +2004,97 @@ export async function registerRoutes(
       const powerBackupTypes = ['Full', 'Partial', 'None', 'DG Backup'];
       const visitorParkingTypes = ['yes', 'no'];
       const groundMovementTypes = ['yes', 'no'];
-      const constructionMaterials = ['Concrete', 'Steel', 'Hybrid', 'Pre-Fabricated', 'Brick', 'Wood'];
+      const constructionMaterials = ['Concrete', 'Red Bricks', 'Cement Bricks'];
       const yesNoTypes = ['yes', 'no'];
 
       // Map frontend format to database format with proper sanitization
+      // Helper to find value case-insensitively in propertyData
+      const getValue = (key: string): any => {
+        if (propertyData[key] !== undefined) return propertyData[key];
+        // Try all-lowercase and all-uppercase versions
+        if (propertyData[key.toLowerCase()] !== undefined) return propertyData[key.toLowerCase()];
+        if (propertyData[key.toUpperCase()] !== undefined) return propertyData[key.toUpperCase()];
+        // Try to find by lowercase comparison of all keys
+        const lowerKey = key.toLowerCase();
+        const foundKey = Object.keys(propertyData).find(k => k.toLowerCase() === lowerKey);
+        if (foundKey) return propertyData[foundKey];
+        return undefined;
+      };
+
       const dbData: any = {
         rera_number: reraNumber,
-        projectname: sanitizeText(propertyData.ProjectName || propertyData.projectname, 'Untitled Project'),
-        buildername: sanitizeText(propertyData.BuilderName || propertyData.buildername, 'Unknown Builder'),
-        areaname: sanitizeText(propertyData.AreaName || propertyData.areaname),
-        projectlocation: sanitizeText(propertyData.ProjectLocation || propertyData.projectlocation),
-        project_type: sanitizeEnum(propertyData.Project_Type || propertyData.project_type, projectTypes, 'Apartment'),
-        buildingname: sanitizeText(propertyData.BuildingName || propertyData.buildingname),
-        communitytype: sanitizeEnum(propertyData.CommunityType || propertyData.communitytype, communityTypes, 'Gated Community'),
-        total_land_area: sanitizeText(propertyData.Total_land_Area || propertyData.total_land_area, '0'),
-        number_of_towers: sanitizeInteger(propertyData.Number_of_Towers || propertyData.number_of_towers, 1),
-        number_of_floors: sanitizeInteger(propertyData.Number_of_Floors || propertyData.number_of_floors, 1),
-        number_of_flats_per_floor: sanitizeInteger(propertyData.Number_of_Flats_Per_Floor || propertyData.number_of_flats_per_floor, 1),
-        total_number_of_units: sanitizeInteger(propertyData.Total_Number_of_Units || propertyData.total_number_of_units, 1),
-        project_launch_date: sanitizeText(propertyData.Launch_Date || propertyData.project_launch_date),
-        possession_date: sanitizeText(propertyData.Possession_Date || propertyData.possession_date),
-        construction_status: sanitizeEnum(propertyData.Construction_Status || propertyData.construction_status, constructionStatuses, 'Ongoing'),
-        open_space: sanitizeNumeric(propertyData.Open_Space || propertyData.open_space, 0),
-        carpet_area_percentage: sanitizeNumeric(propertyData.Carpet_area_Percentage || propertyData.carpet_area_percentage, 0),
-        floor_to_ceiling_height: sanitizeNumeric(propertyData.Floor_to_Ceiling_Height || propertyData.floor_to_ceiling_height, 0),
-        price_per_sft: sanitizeNumeric(propertyData.Price_per_sft || propertyData.price_per_sft, 0),
-        total_buildup_area: sanitizeText(propertyData.Total_Buildup_Area || propertyData.total_buildup_area),
-        uds: sanitizeText(propertyData.UDS || propertyData.uds),
-        fsi: sanitizeText(propertyData.FSI || propertyData.fsi),
-        main_door_height: sanitizeText(propertyData.Main_Door_Height || propertyData.main_door_height),
-        external_amenities: propertyData.External_Amenities || propertyData.external_amenities || null,
-        specification: propertyData.Specification || propertyData.specification || null,
-        powerbackup: sanitizeEnum(propertyData.PowerBackup || propertyData.powerbackup, powerBackupTypes, 'Full'),
-        no_of_passenger_lift: sanitizeInteger(propertyData.No_of_Passenger_lift || propertyData.no_of_passenger_lift, 0),
-        no_of_service_lift: sanitizeInteger(propertyData.No_of_Service_lift || propertyData.no_of_service_lift, 0),
-        visitor_parking: sanitizeEnum(propertyData.Visitor_Parking || propertyData.visitor_parking, visitorParkingTypes, 'yes'),
-        ground_vehicle_movement: sanitizeEnum(propertyData.Ground_vehicle_Movement || propertyData.ground_vehicle_movement, groundMovementTypes, 'yes'),
-        baseprojectprice: sanitizeNumeric(propertyData.baseprojectprice || propertyData['Base Project Price'], 0),
-        commission_percentage: sanitizeNumeric(propertyData.Commission_percentage || propertyData.commission_percentage, 0),
-        amount_for_extra_car_parking: sanitizeNumeric(propertyData.Amount_For_Extra_Car_Parking || propertyData.amount_for_extra_car_parking, 0),
-        home_loan: sanitizeText(propertyData.Home_Loan || propertyData.home_loan),
-        what_is_there_price: sanitizeText(propertyData.What_is_there_Price || propertyData.what_is_there_price),
-        what_is_relai_price: sanitizeText(propertyData.What_is_Relai_Price || propertyData.what_is_relai_price),
-        floor_rise_charges: sanitizeText(propertyData.Floor_Rise_Charges || propertyData.floor_rise_charges),
-        floor_rise_amount_per_floor: sanitizeText(propertyData.Floor_Rise_Amount_per_Floor || propertyData.floor_rise_amount_per_floor),
-        floor_rise_applicable_above_floor_no: sanitizeText(propertyData.Floor_Rise_Applicable_Above_Floor_No || propertyData.floor_rise_applicable_above_floor_no),
-        facing_charges: sanitizeText(propertyData.Facing_Charges || propertyData.facing_charges),
-        preferential_location_charges: sanitizeText(propertyData.Preferential_Location_Charges || propertyData.preferential_location_charges),
-        preferential_location_charges_conditions: sanitizeText(propertyData.Preferential_Location_Charges_Conditions || propertyData.preferential_location_charges_conditions),
-        available_banks_for_loan: propertyData.Available_Banks_for_Loan || propertyData.available_banks_for_loan || null,
-        builder_age: sanitizeText(propertyData.Builder_Age || propertyData.builder_age),
-        builder_total_properties: sanitizeText(propertyData.Builder_Total_Properties || propertyData.builder_total_properties),
-        builder_upcoming_properties: sanitizeText(propertyData.Builder_Upcoming_Properties || propertyData.builder_upcoming_properties),
-        builder_completed_properties: sanitizeText(propertyData.Builder_Completed_Properties || propertyData.builder_completed_properties),
-        builder_ongoing_projects: sanitizeText(propertyData.Builder_Ongoing_Projects || propertyData.builder_ongoing_projects),
-        builder_origin_city: sanitizeText(propertyData.Builder_Origin_City || propertyData.builder_origin_city),
-        builder_operating_locations: propertyData.Builder_Operating_Locations || propertyData.builder_operating_locations || null,
-        previous_complaints_on_builder: sanitizeText(propertyData.Previous_Complaints_on_Builder || propertyData.previous_complaints_on_builder),
-        complaint_details: sanitizeText(propertyData.Complaint_Details || propertyData.complaint_details),
-        construction_material: sanitizeEnum(propertyData.Construction_Material || propertyData.construction_material, constructionMaterials, 'Concrete'),
-        configurations: propertyData.configurations || [],
-        status: propertyData.status === 'Submitted' ? 'Submitted' : 'Unverified',
-        useremail: sanitizeText(propertyData.userEmail || propertyData.useremail, 'unknown@example.com'),
-        poc_name: sanitizeText(propertyData.POC_Name || propertyData.poc_name, 'Unknown'),
-        poc_contact: sanitizeNumeric(propertyData.POC_Contact || propertyData.poc_contact, 0),
-        poc_role: sanitizeText(propertyData.POC_Role || propertyData.poc_role, 'Agent'),
-        person_to_confirm_registration: propertyData.Person_to_Confirm_Registration || propertyData.person_to_confirm_registration || {},
-        after_agreement_of_sale_what_is_payout_time_period: sanitizeNumeric(propertyData.After_Agreement_of_Sale_Payout_Time || propertyData.after_agreement_of_sale_what_is_payout_time_period, 0),
-        turnaround_time_for_lead_acknowledgement: sanitizeNumeric(propertyData.Turnaround_Time_for_Lead || propertyData.turnaround_time_for_lead_acknowledgement, 0),
-        is_there_validity_period_for_registered_lead: sanitizeEnum(propertyData.Is_There_Validity_Period || propertyData.is_there_validity_period_for_registered_lead, yesNoTypes, 'no'),
-        is_lead_registration_required_before_site_visit: propertyData.Is_lead_Registration_required_before_Site_visit || propertyData.is_lead_registration_required_before_site_visit || null,
-        accepted_modes_of_lead_registration: propertyData.Accepted_Modes_of_Lead_Registration || propertyData.accepted_modes_of_lead_registration || null,
-        notes_comments_on_lead_registration_workflow: propertyData.Notes_Comments_on_lead_registration_workflow || propertyData.notes_comments_on_lead_registration_workflow || null,
-        validity_period_value: propertyData.validity_period_value || null,
-        cp: propertyData.POC_CP || propertyData.cp || null,
-        projectbrochure: sanitizeText(propertyData.ProjectBrochure || propertyData.projectbrochure),
-        pricesheet_link_1: sanitizeText(propertyData.Pricesheet_Link || propertyData.pricesheet_link_1),
-        city: sanitizeText(propertyData.City || propertyData.city),
-        state: sanitizeText(propertyData.State || propertyData.state),
+        projectname: sanitizeText(getValue('ProjectName') || getValue('projectname'), 'Untitled Project'),
+        buildername: sanitizeText(getValue('BuilderName') || getValue('buildername'), 'Unknown Builder'),
+        areaname: sanitizeText(getValue('AreaName') || getValue('areaname')),
+        projectlocation: sanitizeText(getValue('ProjectLocation') || getValue('projectlocation')),
+        project_type: sanitizeEnum(getValue('Project_Type'), projectTypes, null),
+        buildingname: sanitizeText(getValue('BuildingName') || getValue('buildingname')),
+        communitytype: sanitizeEnum(getValue('CommunityType'), communityTypes, null),
+        total_land_area: sanitizeText(getValue('Total_land_Area') || getValue('total_land_area'), '0'),
+        number_of_towers: sanitizeInteger(getValue('Number_of_Towers') || getValue('number_of_towers'), 0),
+        number_of_floors: sanitizeInteger(getValue('Number_of_Floors') || getValue('number_of_floors'), 0),
+        number_of_flats_per_floor: sanitizeInteger(getValue('Number_of_Flats_Per_Floor') || getValue('number_of_flats_per_floor'), 0),
+        total_number_of_units: sanitizeInteger(getValue('Total_Number_of_Units') || getValue('total_number_of_units'), 0),
+        project_launch_date: sanitizeText(getValue('Launch_Date') || getValue('project_launch_date')),
+        possession_date: sanitizeText(getValue('Possession_Date') || getValue('possession_date')),
+        construction_status: sanitizeEnum(getValue('Construction_Status'), constructionStatuses, null),
+        open_space: sanitizeNumeric(getValue('Open_Space') || getValue('open_space'), 0),
+        carpet_area_percentage: sanitizeNumeric(getValue('Carpet_area_Percentage') || getValue('carpet_area_percentage'), 0),
+        floor_to_ceiling_height: sanitizeNumeric(getValue('Floor_to_Ceiling_Height') || getValue('floor_to_ceiling_height'), 0),
+        price_per_sft: sanitizeNumeric(getValue('Price_per_sft') || getValue('price_per_sft'), 0),
+        total_buildup_area: sanitizeText(getValue('Total_Buildup_Area') || getValue('total_buildup_area')),
+        uds: sanitizeText(getValue('UDS') || getValue('uds')),
+        fsi: sanitizeText(getValue('FSI') || getValue('fsi')),
+        main_door_height: sanitizeText(getValue('Main_Door_Height') || getValue('main_door_height')),
+        external_amenities: getValue('External_Amenities') || getValue('external_amenities') || null,
+        specification: getValue('Specification') || getValue('specification') || null,
+        powerbackup: sanitizeEnum(getValue('PowerBackup'), powerBackupTypes, null),
+        no_of_passenger_lift: sanitizeInteger(getValue('No_of_Passenger_lift') || getValue('no_of_passenger_lift'), 0),
+        no_of_service_lift: sanitizeInteger(getValue('No_of_Service_lift') || getValue('no_of_service_lift'), 0),
+        visitor_parking: sanitizeEnum(getValue('Visitor_Parking'), visitorParkingTypes, null),
+        ground_vehicle_movement: sanitizeEnum(getValue('Ground_vehicle_Movement'), groundMovementTypes, null),
+        baseprojectprice: sanitizeNumeric(getValue('baseprojectprice') || getValue('BaseProjectPrice'), 0),
+        commission_percentage: sanitizeNumeric(getValue('Commission_percentage') || getValue('commission_percentage'), 0),
+        amount_for_extra_car_parking: sanitizeNumeric(getValue('Amount_For_Extra_Car_Parking') || getValue('amount_for_extra_car_parking'), 0),
+        home_loan: sanitizeText(getValue('Home_Loan') || getValue('home_loan')),
+        what_is_there_price: sanitizeText(getValue('What_is_there_Price') || getValue('what_is_there_price')),
+        what_is_relai_price: sanitizeText(getValue('What_is_Relai_Price') || getValue('what_is_relai_price')),
+        floor_rise_charges: sanitizeText(getValue('Floor_Rise_Charges') || getValue('floor_rise_charges')),
+        floor_rise_amount_per_floor: sanitizeText(getValue('Floor_Rise_Amount_per_Floor') || getValue('floor_rise_amount_per_floor')),
+        floor_rise_applicable_above_floor_no: sanitizeText(getValue('Floor_Rise_Applicable_Above_Floor_No') || getValue('floor_rise_applicable_above_floor_no')),
+        facing_charges: sanitizeText(getValue('Facing_Charges') || getValue('facing_charges')),
+        preferential_location_charges: sanitizeText(getValue('Preferential_Location_Charges') || getValue('preferential_location_charges')),
+        preferential_location_charges_conditions: sanitizeText(getValue('Preferential_Location_Charges_Conditions') || getValue('preferential_location_charges_conditions')),
+        available_banks_for_loan: getValue('Available_Banks_for_Loan') || getValue('available_banks_for_loan') || null,
+        builder_age: sanitizeText(getValue('Builder_Age') || getValue('builder_age')),
+        builder_total_properties: sanitizeText(getValue('Builder_Total_Properties') || getValue('builder_total_properties')),
+        builder_upcoming_properties: sanitizeText(getValue('Builder_Upcoming_Properties') || getValue('builder_upcoming_properties')),
+        builder_completed_properties: sanitizeText(getValue('Builder_Completed_Properties') || getValue('builder_completed_properties')),
+        builder_ongoing_projects: sanitizeText(getValue('Builder_Ongoing_Projects') || getValue('builder_ongoing_projects')),
+        builder_origin_city: sanitizeText(getValue('Builder_Origin_City') || getValue('builder_origin_city')),
+        builder_operating_locations: getValue('Builder_Operating_Locations') || getValue('builder_operating_locations') || null,
+        previous_complaints_on_builder: sanitizeText(getValue('Previous_Complaints_on_Builder') || getValue('previous_complaints_on_builder')),
+        complaint_details: sanitizeText(getValue('Complaint_Details') || getValue('complaint_details')),
+        construction_material: sanitizeEnum(getValue('Construction_Material'), constructionMaterials, null),
+        configurations: getValue('configurations') || [],
+        status: getValue('status') === 'Submitted' ? 'Submitted' : 'Unverified',
+        useremail: sanitizeText(getValue('UserEmail') || getValue('useremail'), null),
+        poc_name: sanitizeText(getValue('POC_Name') || getValue('poc_name'), null),
+        poc_contact: sanitizeNumeric(getValue('POC_Contact') || getValue('poc_contact'), null),
+        poc_role: sanitizeText(getValue('POC_Role') || getValue('poc_role'), null),
+        person_to_confirm_registration: getValue('Person_to_Confirm_Registration') || getValue('person_to_confirm_registration') || {},
+        after_agreement_of_sale_what_is_payout_time_period: sanitizeNumeric(getValue('After_Agreement_of_Sale') || getValue('after_agreement_of_sale_what_is_payout_time_period'), 0),
+        turnaround_time_for_lead_acknowledgement: sanitizeNumeric(getValue('Turnaround_Time') || getValue('turnaround_time_for_lead_acknowledgement'), 0),
+        is_there_validity_period_for_registered_lead: sanitizeEnum(getValue('Is_There_Validity_Period') || getValue('is_there_validity_period_for_registered_lead'), yesNoTypes, null),
+        is_lead_registration_required_before_site_visit: getValue('Is_lead_Registration') || getValue('is_lead_registration_required_before_site_visit') || null,
+        accepted_modes_of_lead_registration: getValue('Accepted_Modes') || getValue('accepted_modes_of_lead_registration') || null,
+        notes_comments_on_lead_registration_workflow: getValue('Notes_Comments') || getValue('notes_comments_on_lead_registration_workflow') || null,
+        validity_period_value: getValue('validity_period_value') || null,
+        cp: getValue('POC_CP') || getValue('cp') || null,
+        projectbrochure: sanitizeText(getValue('ProjectBrochure') || getValue('projectbrochure')),
+        pricesheet_link_1: sanitizeText(getValue('Pricesheet_Link') || getValue('pricesheet_link_1')),
+        city: sanitizeText(getValue('City') || getValue('city')),
+        state: sanitizeText(getValue('State') || getValue('state')),
         updatedat: new Date().toISOString()
       };
 
@@ -2226,12 +2451,57 @@ export async function registerRoutes(
         }
       }
 
+      // Update view count and session tracking
+      const session = req.query.session as string;
+      let allShareLinks = foundRecord.share_links;
+      if (typeof allShareLinks === 'string') {
+        try {
+          allShareLinks = JSON.parse(allShareLinks);
+        } catch (e) {
+          allShareLinks = [];
+        }
+      }
+
+      let updatedLinkInfo = { ...foundShareLink };
+
+      if (Array.isArray(allShareLinks)) {
+        const updatedLinks = allShareLinks.map((link: any) => {
+          if (link.token === token) {
+            const sessions = Array.isArray(link.sessions) ? link.sessions : [];
+            const isNewSession = session && !sessions.includes(session);
+
+            const updatedLink = {
+              ...link,
+              view_count: (link.view_count || 0) + 1,
+              session_count: isNewSession ? (link.session_count || 0) + 1 : (link.session_count || 1),
+              sessions: isNewSession ? [...sessions, session] : sessions,
+              last_viewed_at: new Date().toISOString()
+            };
+            updatedLinkInfo = updatedLink;
+            return updatedLink;
+          }
+          return link;
+        });
+
+        // Update record in database (asynchronously)
+        supabase
+          .from('client_Requirements')
+          .update({ share_links: updatedLinks })
+          .eq('id', foundRecord.id)
+          .then(({ error }) => {
+            if (error) console.error('Error updating share link tracking:', error);
+          });
+      }
+
       res.json({
         success: true,
         leadName: foundShareLink.lead_name,
         leadMobile: foundShareLink.lead_mobile,
         properties,
         createdAt: foundShareLink.created_at,
+        viewCount: updatedLinkInfo.view_count,
+        sessionCount: updatedLinkInfo.session_count,
+        lastViewedAt: updatedLinkInfo.last_viewed_at
       });
     } catch (error: any) {
       console.error('Share link fetch error:', error);
@@ -2783,6 +3053,258 @@ export async function registerRoutes(
         message: 'Failed to generate PDF',
         error: error.message
       });
+    }
+  });
+
+
+  // === BUILDER DATA ROUTES ===
+
+  // Get all builders
+  app.get('/api/builder-data', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('builder_data')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching builders:', error);
+        return res.status(500).json({ message: 'Failed to fetch builders' });
+      }
+
+      res.status(200).json(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+  // Create new builder
+  app.post('/api/builder-data', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const {
+        rera_builder_name,
+        standard_builder_name,
+        builder_age,
+        builder_total_properties,
+        builder_upcoming_properties,
+        builder_completed_properties,
+        builder_ongoing_projects,
+        builder_origin_city,
+        builder_operating_locations,
+        previous_complaints_on_builder,
+        project_names,
+        rera_numbers
+      } = req.body;
+
+      // Validate required fields
+      if (!standard_builder_name) {
+        return res.status(400).json({ message: 'Builder Name is required' });
+      }
+
+      const { data, error } = await supabase
+        .from('builder_data')
+        .insert([{
+          rera_builder_name,
+          standard_builder_name,
+          builder_age: builder_age || null,
+          builder_total_properties: builder_total_properties || null,
+          builder_upcoming_properties: builder_upcoming_properties || null,
+          builder_completed_properties: builder_completed_properties || null,
+          builder_ongoing_projects: builder_ongoing_projects || null,
+          builder_origin_city: builder_origin_city || null,
+          builder_operating_locations: builder_operating_locations || null,
+          previous_complaints_on_builder: previous_complaints_on_builder || null,
+          project_names: project_names || [],
+          rera_numbers: rera_numbers || []
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating builder:', error);
+        return res.status(500).json({ message: 'Failed to create builder' });
+      }
+
+      res.status(201).json({ message: 'Builder created successfully', data });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+  // Update builder
+  app.put('/api/builder-data/:id', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const { id } = req.params;
+      const userEmail = req.headers['x-user-email'] as string;
+
+      // Fetch existing builder data before update to detect new projects
+      const { data: existingBuilder, error: fetchError } = await supabase
+        .from('builder_data')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching builder:', fetchError);
+        return res.status(500).json({ message: 'Failed to fetch builder' });
+      }
+      // Surgically build the update object to avoid overwriting with undefined
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      };
+
+      const fields = [
+        'rera_builder_name',
+        'standard_builder_name',
+        'builder_age',
+        'builder_total_properties',
+        'builder_upcoming_properties',
+        'builder_completed_properties',
+        'builder_ongoing_projects',
+        'builder_origin_city',
+        'builder_operating_locations',
+        'previous_complaints_on_builder',
+        'project_names',
+        'rera_numbers'
+      ];
+
+      fields.forEach(field => {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field] || (field.endsWith('_names') || field.endsWith('_numbers') ? [] : null);
+        }
+      });
+
+      const { data: updatedBuilder, error: updateError } = await supabase
+        .from('builder_data')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating builder:', updateError);
+        return res.status(500).json({ message: 'Failed to update builder' });
+      }
+
+      // Check for new projects to add to Unverified_Properties
+      if (req.body.project_names && Array.isArray(req.body.project_names) && existingBuilder) {
+        const existingNames = new Set((existingBuilder.project_names || []).map((n: string) => n.toLowerCase().trim()));
+        const newProjects = req.body.project_names.filter((name: string) => !existingNames.has(name.toLowerCase().trim()));
+
+        if (newProjects.length > 0) {
+          console.log(`Detected ${newProjects.length} new project(s) to add to Unverified_Properties`);
+
+          for (const projectName of newProjects) {
+            const index = req.body.project_names.indexOf(projectName);
+            const reraNumber = (req.body.rera_numbers && req.body.rera_numbers[index]) || `PENDING-${Date.now()}`;
+
+            // Prepare entries using same defaults as/api/properties/save
+            const unverifiedEntry: any = {
+              projectname: projectName,
+              rera_number: reraNumber,
+              buildername: updatedBuilder.standard_builder_name || updatedBuilder.rera_builder_name || 'Unknown Builder',
+              useremail: userEmail || 'system@relai.world',
+
+              // Map Builder Data
+              builder_origin_city: updatedBuilder.builder_origin_city,
+              builder_age: updatedBuilder.builder_age ? parseInt(updatedBuilder.builder_age) : null,
+              builder_total_properties: updatedBuilder.builder_total_properties ? parseInt(updatedBuilder.builder_total_properties) : null,
+              builder_upcoming_properties: updatedBuilder.builder_upcoming_properties ? parseInt(updatedBuilder.builder_upcoming_properties) : null,
+              builder_completed_properties: updatedBuilder.builder_completed_properties ? parseInt(updatedBuilder.builder_completed_properties) : null,
+              builder_ongoing_projects: updatedBuilder.builder_ongoing_projects ? parseInt(updatedBuilder.builder_ongoing_projects) : null,
+              builder_operating_locations: updatedBuilder.builder_operating_locations ? [updatedBuilder.builder_operating_locations] : [],
+              previous_complaints_on_builder: 'no',
+              complaint_details: updatedBuilder.previous_complaints_on_builder || '',
+
+              // Required Defaults (reverted to non-null defaults per DB constraints)
+              baseprojectprice: 0,
+              project_type: 'Apartment',
+              communitytype: 'Gated Community',
+              total_land_area: '0',
+              number_of_towers: 0,
+              number_of_floors: 0,
+              number_of_flats_per_floor: 0,
+              total_number_of_units: 0,
+              construction_status: 'Ongoing',
+              open_space: 0,
+              carpet_area_percentage: 0,
+              floor_to_ceiling_height: 0,
+              price_per_sft: 0,
+              powerbackup: 'Full',
+              no_of_passenger_lift: 0,
+              no_of_service_lift: 0,
+              visitor_parking: 'yes',
+              ground_vehicle_movement: 'yes',
+              amount_for_extra_car_parking: 0,
+              construction_material: 'Concrete',
+              commission_percentage: 0,
+              after_agreement_of_sale_what_is_payout_time_period: 0,
+              is_there_validity_period_for_registered_lead: 'no',
+              person_to_confirm_registration: {},
+              poc_name: 'Not assigned',
+              poc_contact: 0,
+              poc_role: 'Not assigned',
+              status: 'Unverified',
+              verified: false,
+              createdat: new Date().toISOString(),
+              updatedat: new Date().toISOString()
+            };
+
+            const { error: insertError } = await supabase
+              .from('Unverified_Properties')
+              .insert([unverifiedEntry]);
+
+            if (insertError) {
+              console.error(`Error inserting new project ${projectName} into Unverified_Properties:`, insertError);
+            }
+          }
+        }
+      }
+
+      res.status(200).json({ message: 'Builder updated successfully', data: updatedBuilder });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+  // Delete builder
+  app.delete('/api/builder-data/:id', async (req, res) => {
+    if (!supabase) {
+      return res.status(503).json({ message: 'Database not available' });
+    }
+
+    try {
+      const { id } = req.params;
+
+      const { error } = await supabase
+        .from('builder_data')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting builder:', error);
+        return res.status(500).json({ message: 'Failed to delete builder' });
+      }
+
+      res.status(200).json({ message: 'Builder deleted successfully' });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ message: 'Server error' });
     }
   });
 

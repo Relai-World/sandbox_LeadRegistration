@@ -15,7 +15,7 @@ interface FinancialComplianceProps {
 
 export const FinancialCompliance: React.FC<FinancialComplianceProps> = ({ data, onUpdate, errors = {}, isViewMode = false }) => {
   const banks = ['ICICI Bank', 'Axis Bank', 'SBI', 'UBI', 'HDFC Bank', 'Kotak Mahindra Bank'];
-  
+
   const handleInputChange = (field: string, value: string | boolean) => {
     onUpdate({ [field]: value });
   };
@@ -103,7 +103,7 @@ export const FinancialCompliance: React.FC<FinancialComplianceProps> = ({ data, 
             {errors.commissionPercentage && <p className="text-red-500 text-xs mt-1">{errors.commissionPercentage}</p>}
             <p className="text-xs lg:text-sm text-gray-500">Commission percentage for agents (Range: 0-100%)</p>
           </div> */}
-{/* 
+          {/* 
           <div className="space-y-2">
             <Label htmlFor="payoutPeriod" className="text-sm font-medium">Payout Period (Days)</Label>
             <Input
@@ -174,38 +174,7 @@ export const FinancialCompliance: React.FC<FinancialComplianceProps> = ({ data, 
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Compliance</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="previousComplaints"
-              checked={data.previousComplaints === 'yes'}
-              onCheckedChange={(checked) => handleInputChange('previousComplaints', checked ? 'yes' : 'no')}
-              disabled={isViewMode}
-            />
-            <Label htmlFor="previousComplaints">Any previous complaints on the builder?</Label>
-          </div>
-
-          {data.previousComplaints === 'yes' && (
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="complaintDetails">Complaint Details</Label>
-              <Textarea
-                id="complaintDetails"
-                placeholder="Describe the complaints..."
-                value={data.complaintDetails || ''}
-                onChange={(e) => handleInputChange('complaintDetails', e.target.value)}
-                className={errors.complaintDetails ? 'border-red-500' : ''}
-                disabled={isViewMode}
-              />
-              {errors.complaintDetails && <p className="text-red-500 text-xs mt-1">{errors.complaintDetails}</p>}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };
- 
+

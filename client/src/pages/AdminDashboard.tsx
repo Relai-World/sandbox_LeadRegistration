@@ -18,12 +18,12 @@ interface AdminDashboardProps {
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const { user } = useAuth();
-  const [selectedOption, setSelectedOption] = useState<'allProjects' | 'full' | 'short' | 'reports' | 'drafts' | 'viewProjects' | 'builderData'>('allProjects');
+  const [selectedOption, setSelectedOption] = useState<'allProjects' | 'full' | 'short' | 'reports' | 'drafts' | 'viewProjects' | 'builderData' | 'projectsData'>('allProjects');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingDraft, setEditingDraft] = useState<any>(null);
   const [viewingProject, setViewingProject] = useState<any>(null);
 
-  const handleOptionSelect = (option: 'allProjects' | 'full' | 'short' | 'reports' | 'drafts' | 'viewProjects' | 'builderData') => {
+  const handleOptionSelect = (option: 'allProjects' | 'full' | 'short' | 'reports' | 'drafts' | 'viewProjects' | 'builderData' | 'projectsData') => {
     setSelectedOption(option);
     setSidebarOpen(false);
     setEditingDraft(null);
@@ -56,6 +56,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const menuItems = [
     { id: 'allProjects' as const, icon: Shield, label: 'All Projects (Admin)', description: 'View and verify all agent submissions' },
     { id: 'builderData' as const, icon: HardHat, label: 'Builder Data', description: 'Manage builder information' },
+    { id: 'projectsData' as const, icon: Building2, label: 'Projects Data', description: 'Manage project information and RERA numbers' },
     { id: 'viewProjects' as const, icon: Building2, label: 'View Projects', description: 'View your submitted projects' },
     { id: 'full' as const, icon: FileText, label: 'New Project (Full Form)', description: 'Complete project onboarding' },
     { id: 'short' as const, icon: FilePlus, label: 'New Project (Short Form)', description: 'Quick project submission' },
@@ -68,7 +69,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
       case 'allProjects':
         return <AdminAllProjects adminUser={user} />;
       case 'builderData':
-        return <BuilderData />;
+        return <BuilderData view="builders" />;
+      case 'projectsData':
+        return <BuilderData view="projects" />;
       case 'full':
         return (
           <ProjectForm
@@ -145,11 +148,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
               <button
                 key={item.id}
                 onClick={() => handleOptionSelect(item.id)}
-                className={`w-full flex items-start space-x-3 p-3 rounded-lg transition-colors ${
-                  selectedOption === item.id
+                className={`w-full flex items-start space-x-3 p-3 rounded-lg transition-colors ${selectedOption === item.id
                     ? 'bg-purple-100 text-purple-900'
                     : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <item.icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${selectedOption === item.id ? 'text-purple-600' : 'text-gray-500'}`} />
                 <div className="flex-1 text-left">

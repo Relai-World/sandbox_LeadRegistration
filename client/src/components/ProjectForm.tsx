@@ -253,10 +253,31 @@ export const normalizePropertyData = (property: any): FormData => {
       };
     }
 
-    // Handle array format (e.g., [{WhatsApp: {...}, Email: {...}}])
     let modes = acceptedModes;
-    if (Array.isArray(acceptedModes) && acceptedModes.length > 0) {
-      modes = acceptedModes[0];
+
+    // Handle if modes is a JSON string
+    if (typeof acceptedModes === 'string') {
+      try {
+        modes = JSON.parse(acceptedModes);
+      } catch (e) {
+        console.error('Error parsing registration modes:', e);
+        return {
+          whatsappRegistration: 'no',
+          emailRegistration: 'no',
+          webFormRegistration: 'no',
+          crmAppRegistration: 'no',
+          duringSiteVisitRegistration: 'no',
+          whatsappRegistrationDetails: '',
+          emailRegistrationDetails: '',
+          webFormRegistrationDetails: '',
+          crmAppRegistrationDetails: ''
+        };
+      }
+    }
+
+    // Handle array format (e.g., [{WhatsApp: {...}, Email: {...}}])
+    if (Array.isArray(modes) && modes.length > 0) {
+      modes = modes[0];
     }
 
     return {
@@ -268,7 +289,7 @@ export const normalizePropertyData = (property: any): FormData => {
       webFormRegistrationDetails: modes.Web_Form?.details || '',
       crmAppRegistration: modes.CRM_App_Access?.enabled || 'no',
       crmAppRegistrationDetails: modes.CRM_App_Access?.details || '',
-      duringSiteVisitRegistration: modes.During_Site_Visit || 'no'
+      duringSiteVisitRegistration: modes.During_Site_Visit || (modes.During_site_Visit !== undefined ? modes.During_site_Visit : 'no')
     };
   };
 
@@ -644,9 +665,7 @@ export const normalizePropertyData = (property: any): FormData => {
         return value !== '' ? value : '';
       })(),
       homeLoan: property.Home_Loan || property.Home_loan || '',
-      homeLoanBanks: property.Available_Banks_for_Loan || property.available_banks_for_loan || [],
-      previousComplaints: property.Previous_Complaints_on_Builder || property.previous_complaints_on_builder || 'no',
-      complaintDetails: property.Complaint_Details || property.complaint_details || ''
+      homeLoanBanks: property.Available_Banks_for_Loan || property.available_banks_for_loan || []
     },
     secondary: {
       commissionPercentage: property.Commission_percentage || '',
@@ -677,7 +696,16 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
   agentData,
   isViewMode = false,
 }) => {
-  const [formData, setFormData] = useState<FormData>(initialData || {});
+  const [formData, setFormData] = useState<FormData>(() => {
+    if (initialData) {
+      // Check if data needs normalization (e.g., if it doesn't have the standard 'basics' section)
+      const needsNormalization = !initialData.basics;
+      return needsNormalization ? normalizePropertyData(initialData) : initialData;
+    }
+    return {
+      basics: { reraNumber: reraNumber || '' }
+    };
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState<any>({});
   const [activeTab, setActiveTab] = useState<string>('basics');
@@ -686,8 +714,11 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
   // Update formData when initialData changes (e.g., when loading a draft)
   useEffect(() => {
     if (initialData) {
-      console.log('ProjectForm: initialData changed, updating formData:', initialData);
-      setFormData(initialData);
+      console.log('ProjectForm: initialData changed, normalizing and updating formData');
+      // Check if data needs normalization
+      const needsNormalization = !initialData.basics;
+      const dataToSet = needsNormalization ? normalizePropertyData(initialData) : initialData;
+      setFormData(dataToSet);
     }
   }, [initialData]);
 
@@ -1197,8 +1228,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
       Amount_For_Extra_Car_Parking: financial.extraCarParkingAmount || 0,
       Home_loan: financial.homeLoan,
       available_banks_for_loan: financial.homeLoanBanks || [],
-      previous_complaints_on_builder: financial.previousComplaints,
-      complaint_details: financial.complaintDetails,
 
       // Commission & Payout
       Commission_percentage: secondary.commissionPercentage,
@@ -1554,8 +1583,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({
                     }
                     if ('homeLoan' in data) financialUpdate.homeLoan = data.homeLoan;
                     if ('homeLoanBanks' in data) financialUpdate.homeLoanBanks = data.homeLoanBanks;
-                    if ('previousComplaints' in data) financialUpdate.previousComplaints = data.previousComplaints;
-                    if ('complaintDetails' in data) financialUpdate.complaintDetails = data.complaintDetails;
 
                     if ('pricePerSft' in data) constructionUpdate.pricePerSft = data.pricePerSft;
 

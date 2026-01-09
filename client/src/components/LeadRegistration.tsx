@@ -23,15 +23,21 @@ import {
   Loader2,
   Search,
   RefreshCw,
+  Link,
+  ExternalLink,
   Mail,
   MessageCircle,
   User,
   Home,
   ChevronDown,
   ChevronRight,
-  Link,
+  MoreVertical,
+  ArrowRight,
+  Check,
   Copy,
-  Check
+  ChevronLeft,
+  ChevronLast,
+  ChevronFirst
 } from 'lucide-react';
 import {
   Dialog,
@@ -41,9 +47,84 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+const getWhatsAppUrl = (
+  phone: string,
+  projectName: string,
+  customerName: string,
+  customerMobile: string,
+  budget: string,
+  configuration: string
+) => {
+  const message = `Dear ${projectName} Team,
+
+We are sharing details of a serious customer enquiry for ${projectName}, generated through our channel.
+
+Customer Information
+Name: ${customerName}
+Contact: ${customerMobile}
+Budget: ${budget}
+Configuration: ${configuration}
+Purchase Timeline: Immediate
+
+The client is actively shortlisting limited projects and is seeking quick clarity on availability, pricing, and offers.
+
+Upon your prompt response and confirmation, we will immediately schedule a site visit, as the customer is keen to move ahead within the current decision window.
+
+We request a priority callback and appreciate an update once the discussion is completed.
+
+Warm regards,
+ [Relai – Channel Partner]
+ [8019483838]`;
+
+  const cleanNumber = phone.replace(/\D/g, '');
+  return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+};
+
+const getEmailUrl = (
+  email: string,
+  projectName: string,
+  customerName: string,
+  customerMobile: string,
+  budget: string,
+  configuration: string
+) => {
+  const subject = `Serious Customer Enquiry: ${customerName} for ${projectName}`;
+  const message = `Dear ${projectName} Team,
+
+We are sharing details of a serious customer enquiry for ${projectName}, generated through our channel.
+
+Customer Information
+Name: ${customerName}
+Contact: ${customerMobile}
+Budget: ${budget}
+Configuration: ${configuration}
+Purchase Timeline: Immediate
+
+The client is actively shortlisting limited projects and is seeking quick clarity on availability, pricing, and offers.
+
+Upon your prompt response and confirmation, we will immediately schedule a site visit, as the customer is keen to move ahead within the current decision window.
+
+We request a priority callback and appreciate an update once the discussion is completed.
+
+Warm regards,
+ [Relai – Channel Partner]
+ [8019483838]`;
+
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
+};
+
 const toTitleCase = (str: string | undefined | null): string => {
   if (!str) return '';
-  return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+  return str.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const formatPrice = (price: any) => {
+  if (!price || price === '0' || price === 0) return 'N/A';
+  const num = parseFloat(String(price).replace(/[^0-9.]/g, ''));
+  if (isNaN(num) || num <= 0) return String(price);
+  if (num >= 10000000) return `${(num / 10000000).toFixed(2)} Cr`;
+  if (num >= 100000) return `${(num / 100000).toFixed(2)} Lac`;
+  return num.toLocaleString('en-IN');
 };
 
 interface ShortlistedPropertyData {
@@ -83,6 +164,7 @@ interface ShortlistedPropertyData {
   alternative_contact?: string;
 
   Accepted_Modes_of_Lead_Registration?: any;
+  baseprojectprice?: string | number;
 }
 
 interface ShortlistedProperty {
@@ -130,6 +212,9 @@ interface ClientRequirement {
   shortlisted_properties: ShortlistedProperty[];
   site_visits: any[];
   updated_at: string;
+  count?: number;
+  session?: string;
+  share_links?: any;
 }
 
 interface LeadRegistrationProps {
@@ -167,7 +252,25 @@ interface PocData {
   alternative_contact?: string;
 }
 
-const AlternativeContactCell = ({ initialValue, reraNumber, onSave }: { initialValue: string, reraNumber: string, onSave: (val: string) => Promise<void> }) => {
+const AlternativeContactCell = ({
+  initialValue,
+  reraNumber,
+  onSave,
+  projectName,
+  customerName,
+  customerMobile,
+  budget,
+  configuration
+}: {
+  initialValue: string,
+  reraNumber: string,
+  onSave: (val: string) => Promise<void>,
+  projectName: string,
+  customerName: string,
+  customerMobile: string,
+  budget: string,
+  configuration: string
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(initialValue);
   const [loading, setLoading] = useState(false);
@@ -232,7 +335,7 @@ const AlternativeContactCell = ({ initialValue, reraNumber, onSave }: { initialV
     if (value.includes('@')) {
       content = (
         <a
-          href={`mailto:${value}`}
+          href={getEmailUrl(value, projectName, customerName, customerMobile, budget, configuration)}
           onClick={(e) => e.stopPropagation()}
           className="text-blue-600 hover:underline flex items-center gap-1 truncate max-w-[150px]"
           title={value}
@@ -246,7 +349,7 @@ const AlternativeContactCell = ({ initialValue, reraNumber, onSave }: { initialV
       const cleanNumber = value.replace(/\D/g, '');
       content = (
         <a
-          href={`https://wa.me/${cleanNumber}`}
+          href={getWhatsAppUrl(cleanNumber, projectName, customerName, customerMobile, budget, configuration)}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
@@ -279,6 +382,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
   const [selectedLead, setSelectedLead] = useState<ClientRequirement | null>(null);
   const [pocDataMap, setPocDataMap] = useState<Record<string, PocData>>({});
   const [selectedPropertyKeys, setSelectedPropertyKeys] = useState<Set<string>>(new Set());
+  const [sessionId] = useState(() => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
   const [zohoLeadNames, setZohoLeadNames] = useState<Record<string, string>>({});
   const [savedPropertyKeys, setSavedPropertyKeys] = useState<Set<string>>(new Set());
   const [savingPropertyKeys, setSavingPropertyKeys] = useState<Set<string>>(new Set());
@@ -768,6 +872,14 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
     }
   };
 
+  const shareToWhatsApp = () => {
+    if (!shareLink) return;
+    const message = `Hi! I've prepared a property comparison for you. You can view it here:\n\n${shareLink}\n\nLet me know if you have any questions!`;
+    const cleanNumber = leadMobile.replace(/\D/g, '');
+    const url = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
   const copyShareLink = async () => {
     try {
       await navigator.clipboard.writeText(shareLink);
@@ -929,6 +1041,8 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       const payload = {
         client_mobile: formData.client_mobile,
         requirement_name: formData.requirement_name,
+        user_id: agentData?.email || agentData?.id || 'unknown',
+        session: sessionId,
         preferences: {
           budget_min: formData.preferences.budget_min ? parseFloat(formData.preferences.budget_min) : null,
           budget_max: formData.preferences.budget_max ? parseFloat(formData.preferences.budget_max) : null,
@@ -1052,7 +1166,14 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
     return 'Not specified';
   };
 
-  const getRegistrationMode = (modes: any) => {
+  const getRegistrationMode = (
+    modes: any,
+    projectName: string,
+    customerName: string,
+    customerMobile: string,
+    budget: string,
+    configuration: string
+  ) => {
     if (!modes) return 'N/A';
 
     // Handle if modes is a JSON string
@@ -1077,7 +1198,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       items.push(
         <a
           key="email"
-          href={`mailto:${parsedModes.Email.details}`}
+          href={getEmailUrl(parsedModes.Email.details, projectName, customerName, customerMobile, budget, configuration)}
           className="text-blue-600 hover:underline inline-flex items-center gap-1"
           onClick={(e) => e.stopPropagation()}
         >
@@ -1096,7 +1217,7 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
       items.push(
         <a
           key="whatsapp"
-          href={`https://wa.me/${cleanNumber}`}
+          href={getWhatsAppUrl(cleanNumber, projectName, customerName, customerMobile, budget, configuration)}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 hover:underline text-gray-700 hover:text-green-700"
@@ -1559,6 +1680,8 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Lead Name</th>
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Mobile</th>
                     <th className="text-left px-3 py-2 font-semibold text-gray-700">Properties</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">User Count</th>
+                    <th className="text-left px-3 py-2 font-semibold text-gray-700">Link Views</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1608,10 +1731,39 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                               {shortlistedList.length} {shortlistedList.length === 1 ? 'property' : 'properties'}
                             </span>
                           </td>
+                          <td className="px-3 py-3 text-gray-600">
+                            {lead.count || 0}
+                          </td>
+                          <td className="px-3 py-3 text-gray-600">
+                            <div className="flex flex-col">
+                              <span className="flex items-center gap-1 text-xs">
+                                <Eye className="w-3 h-3 text-gray-400" />
+                                {(() => {
+                                  let links = lead.share_links;
+                                  if (typeof links === 'string') {
+                                    try { links = JSON.parse(links); } catch (e) { links = []; }
+                                  }
+                                  if (!Array.isArray(links)) return 0;
+                                  return links.reduce((sum: number, l: any) => sum + (l.view_count || 0), 0);
+                                })()} views
+                              </span>
+                              <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                                <Users className="w-2.5 h-2.5" />
+                                {(() => {
+                                  let links = lead.share_links;
+                                  if (typeof links === 'string') {
+                                    try { links = JSON.parse(links); } catch (e) { links = []; }
+                                  }
+                                  if (!Array.isArray(links)) return 0;
+                                  return links.reduce((sum: number, l: any) => sum + (l.session_count || 0), 0);
+                                })()} sessions
+                              </span>
+                            </div>
+                          </td>
                         </tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan={5} className="p-0">
+                            <td colSpan={6} className="p-0">
                               <div className="bg-gray-50 border-t border-b">
                                 <table className="w-full text-sm">
                                   <thead className="bg-gray-100">
@@ -1636,6 +1788,25 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                                       const builderName = property.property?.buildername || property.buildername;
                                       const pocInfo = reraNumber ? pocDataMap[reraNumber] : null;
                                       const propertyKey = `${lead.id}-${reraNumber || projectName || propIndex}`;
+
+                                      // Robust extraction of budget and configuration
+                                      const config = property.configuration;
+                                      const rawBudget = config?.baseprojectprice || config?.base_project_price || pocInfo?.price_range || property.property?.baseprojectprice || property.property?.price_range;
+                                      const formattedBudget = formatPrice(rawBudget);
+
+                                      let formattedConfig = 'N/A';
+                                      if (typeof config === 'string' && config) {
+                                        formattedConfig = config;
+                                      } else if (typeof config === 'object' && config !== null) {
+                                        const bhk = config.bhk || config.type;
+                                        const sqft = config.sqfeet || config.sizeSqFt || config.sizeRange;
+                                        if (bhk && sqft) formattedConfig = `${bhk} BHK - ${sqft} sq.ft`;
+                                        else if (bhk) formattedConfig = `${bhk} BHK`;
+                                        else if (sqft) formattedConfig = `${sqft} sq.ft`;
+                                      }
+                                      if (formattedConfig === 'N/A') {
+                                        formattedConfig = pocInfo?.size_range || property.property?.size_range || 'N/A';
+                                      }
 
                                       return (
                                         <tr key={`${lead.id}-${propIndex}`} className="hover:bg-gray-100 border-t border-gray-200">
@@ -1676,13 +1847,23 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
                                             {getRegistrationMode(
                                               pocInfo?.accepted_modes_of_lead_registration ||
                                               property.property?.accepted_modes_of_lead_registration ||
-                                              property.property?.Accepted_Modes_of_Lead_Registration
+                                              property.property?.Accepted_Modes_of_Lead_Registration,
+                                              toTitleCase(projectName) || 'N/A',
+                                              lead.lead_name || lead.client_name || '-',
+                                              lead.client_mobile || '-',
+                                              formattedBudget,
+                                              formattedConfig
                                             )}
                                           </td>
                                           <td className="px-3 py-2 text-gray-700">
                                             <AlternativeContactCell
                                               initialValue={pocInfo?.alternative_contact || property.property?.alternative_contact || ''}
                                               reraNumber={reraNumber || ''}
+                                              projectName={toTitleCase(projectName) || 'N/A'}
+                                              customerName={lead.lead_name || lead.client_name || '-'}
+                                              customerMobile={lead.client_mobile || '-'}
+                                              budget={formattedBudget}
+                                              configuration={formattedConfig}
                                               onSave={async (value) => {
                                                 if (!reraNumber) return;
                                                 try {
@@ -1859,20 +2040,38 @@ const LeadRegistration: React.FC<LeadRegistrationProps> = ({ agentData }) => {
               Share this link with your client to view the property comparison.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center gap-2 mt-4">
-            <Input
-              value={shareLink}
-              readOnly
-              className="flex-1"
-              data-testid="input-share-link"
-            />
-            <Button
-              onClick={copyShareLink}
-              size="icon"
-              variant="outline"
-              data-testid="button-copy-link"
+          <div className="flex flex-col gap-3 mt-4">
+            <div className="flex items-center gap-2">
+              <Input
+                value={shareLink}
+                readOnly
+                className="flex-1"
+                data-testid="input-share-link"
+              />
+              <Button
+                onClick={copyShareLink}
+                size="icon"
+                variant="outline"
+                data-testid="button-copy-link"
+              >
+                {shareLinkCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+            <a
+              href={shareLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1 underline break-all"
             >
-              {shareLinkCopied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              <ExternalLink className="w-3 h-3" />
+              {shareLink}
+            </a>
+            <Button
+              onClick={shareToWhatsApp}
+              className="mt-2 bg-green-600 hover:bg-green-700 text-white w-full"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Share on WhatsApp
             </Button>
           </div>
           <div className="mt-4 text-sm text-muted-foreground">

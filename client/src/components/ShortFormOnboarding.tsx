@@ -63,8 +63,9 @@ interface FormData {
   commissionType: string;
   commissionPercentage: string;
   payoutPeriod: string;
-  pocDetails: { name: string; contact: string; role: string; cp: boolean; }[];
+  pocDetails: { name: string; contact: string; role: string; cp: string; }[];
   unitConfigurations: UnitConfigurations;
+  acceptedModesOfLeadRegistration?: any;
 }
 
 interface ShortFormOnboardingProps {
@@ -79,7 +80,7 @@ interface ShortFormOnboardingProps {
 
 // The API endpoint URL from your backend server
 // It's best practice to store this in an environment variable
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 
 // Helper function to normalize unit type format (add space before BHK)
@@ -92,28 +93,28 @@ const normalizeUnitType = (type: string) => {
 // Helper function to build unit configurations from API data
 const buildUnitConfigurations = (apiConfigs: any[], projectType: string): UnitConfigurations => {
   const configs: UnitConfigurations = {};
-  
+
   // Normalize project type to lowercase for case-insensitive comparison
   // Handle plural forms (Villas, Apartments) and compound types (Villa Apartment)
   const normalizedProjectType = projectType?.toLowerCase() || '';
   const isVillaProject = normalizedProjectType.includes('villa') || normalizedProjectType === 'stand-alone';
-  
+
   console.log('buildUnitConfigurations - projectType:', projectType, 'normalized:', normalizedProjectType, 'isVilla:', isVillaProject);
-  
+
   apiConfigs.forEach((config: any) => {
     const rawUnitType = config.type;
     if (!rawUnitType) return;
-    
+
     // Normalize the unit type to match frontend format (with space)
     const unitType = normalizeUnitType(rawUnitType);
-    
+
     if (!configs[unitType]) {
       configs[unitType] = {
         enabled: true,
         variants: []
       };
     }
-    
+
     // Map based on project type - Villa has separate fields, Apartment has single size field
     if (isVillaProject && (config.sizeSqFt || config.sizeSqYd)) {
       configs[unitType].variants.push({
@@ -135,7 +136,7 @@ const buildUnitConfigurations = (apiConfigs: any[], projectType: string): UnitCo
       });
     }
   });
-  
+
   return configs;
 };
 
@@ -143,21 +144,21 @@ const buildUnitConfigurations = (apiConfigs: any[], projectType: string): UnitCo
 const mapPropertyToFormPatch = (property: any): Partial<FormData> => {
   console.log('mapPropertyToFormPatch - Received property data:', property);
   console.log('mapPropertyToFormPatch - Available keys:', Object.keys(property));
-  
+
   const patch: Partial<FormData> = {};
-  
+
   // Basic fields
   if (property.ProjectName) patch.projectName = property.ProjectName;
   if (property.BuilderName) patch.builderName = property.BuilderName;
   if (property.RERA_Number) patch.reraNumber = property.RERA_Number;
-  
+
   // Project Type mapping (Villa -> stand-alone, Apartment -> gated)
   // Normalize to lowercase for case-insensitive comparison
   // Handle plural forms (Villas, Apartments), compound types (Villa Apartment), and existing short-form values
   if (property.Project_Type || property.property_type) {
     const projectType = (property.Project_Type || property.property_type)?.toLowerCase() || '';
     console.log('mapPropertyToFormPatch - Original project type:', property.Project_Type || property.property_type, 'normalized:', projectType);
-    
+
     // First check if it's already a short-form value (preserve as-is)
     if (projectType === 'stand-alone' || projectType === 'gated' || projectType === 'semi-gated') {
       patch.projectType = projectType;
@@ -165,13 +166,13 @@ const mapPropertyToFormPatch = (property: any): Partial<FormData> => {
     // Check if the type contains 'villa' anywhere in the string (handles Villa, Villas, Villa Apartment, etc.)
     else if (projectType.includes('villa')) {
       patch.projectType = 'stand-alone';
-    } 
+    }
     // Check if the type contains 'apartment' anywhere (handles Apartment, Apartments, etc.)
     else if (projectType.includes('apartment')) {
       patch.projectType = 'gated';
     }
   }
-  
+
   // Numeric fields
   if (property.Number_of_Floors) patch.numberOfFloors = property.Number_of_Floors.toString();
   if (property.Open_Space !== undefined && property.Open_Space !== null) {
@@ -200,11 +201,11 @@ const mapPropertyToFormPatch = (property: any): Partial<FormData> => {
   if (property.After_agreement_of_sale_what_is_payout_time_period) {
     patch.payoutPeriod = property.After_agreement_of_sale_what_is_payout_time_period.toString();
   }
-  
+
   // City and State
   if (property.City) patch.city = property.City;
   if (property.State) patch.state = property.State;
-  
+
   // New fields
   if (property.CommunityType) patch.communityType = property.CommunityType;
   if (property.Total_land_Area) patch.totalLandArea = property.Total_land_Area;
@@ -213,12 +214,12 @@ const mapPropertyToFormPatch = (property: any): Partial<FormData> => {
   if (property.ProjectBrochure) patch.brochureLink = property.ProjectBrochure;
   if (property.PriceSheetLink) patch.priceSheetLink = property.PriceSheetLink;
   if (property.ProjectLocation) patch.projectLocation = property.ProjectLocation;
-  
+
   // Date field - handle both ISO dates and string formats like "RTM"
   if (property.Possession_Date) {
     // Convert to string for consistent handling
     const possessionValue = String(property.Possession_Date);
-    
+
     // Handle special values like "RTM" (Ready to Move)
     if (possessionValue === 'RTM' || possessionValue.toUpperCase() === 'RTM') {
       patch.possessionDate = 'RTM';
@@ -237,7 +238,7 @@ const mapPropertyToFormPatch = (property: any): Partial<FormData> => {
       }
     }
   }
-  
+
   // String fields
   if (property.PowerBackup) {
     const powerValue = property.PowerBackup.toLowerCase();
@@ -253,7 +254,7 @@ const mapPropertyToFormPatch = (property: any): Partial<FormData> => {
     }
   }
   if (property.Wow_Factor_Amenity) patch.wowFactorAmenity = property.Wow_Factor_Amenity;
-  
+
   // POC Details
   if (property.pocDetails && property.pocDetails.length > 0) {
     patch.pocDetails = property.pocDetails.map((poc: any) => ({
@@ -262,27 +263,31 @@ const mapPropertyToFormPatch = (property: any): Partial<FormData> => {
       role: poc.role || '',
       cp: poc.cp || false
     }));
-  } else if (property.POC_Name || property.POC_Contact || property.POC_Role) {
     patch.pocDetails = [{
       name: property.POC_Name || '',
       contact: property.POC_Contact?.toString() || '',
       role: property.POC_Role || '',
-      cp: property.POC_CP || property.cp || false
+      cp: property.POC_CP || property.cp || ''
     }];
   }
-  
+
+  // Registration Modes
+  if (property.Accepted_Modes_of_Lead_Registration || property.accepted_modes_of_lead_registration) {
+    patch.acceptedModesOfLeadRegistration = property.Accepted_Modes_of_Lead_Registration || property.accepted_modes_of_lead_registration;
+  }
+
   // Unit Configurations
   if (property.configurations && property.configurations.length > 0) {
     const projectType = property.Project_Type || property.property_type || '';
     patch.unitConfigurations = buildUnitConfigurations(property.configurations, projectType);
   }
-  
+
   console.log('mapPropertyToFormPatch - Generated patch:', patch);
   return patch;
 };
 
 export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentData, userEmail, onDraftSaved, onSubmitSuccess, initialData, isViewMode = false, onBackToDashboard }) => {
-  
+
   // Transform initial data if provided
   const getInitialFormData = (): FormData => {
     if (initialData) {
@@ -349,41 +354,42 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
         payoutPeriod: data.After_agreement_of_sale_what_is_payout_time_period?.toString() || '',
         pocDetails: data.pocDetails && data.pocDetails.length > 0
           ? data.pocDetails.map((poc: any) => ({
-              name: poc.name || '',
-              contact: poc.contact?.toString() || '',
-              role: poc.role || '',
-              cp: poc.cp || false
-            }))
+            name: poc.name || '',
+            contact: poc.contact?.toString() || '',
+            role: poc.role || '',
+            cp: poc.cp || ''
+          }))
           : (data.POC_Name || data.POC_Contact || data.POC_Role)
-          ? [{ name: data.POC_Name || '', contact: data.POC_Contact?.toString() || '', role: data.POC_Role || '', cp: data.POC_CP || data.cp || false }]
-          : [{ name: '', contact: '', role: '', cp: false }],
+            ? [{ name: data.POC_Name || '', contact: data.POC_Contact?.toString() || '', role: data.POC_Role || '', cp: data.POC_CP || data.cp || '' }]
+            : [{ name: '', contact: '', role: '', cp: '' }],
         unitConfigurations: buildUnitConfigurations(
-          data.variants || [],
+          data.configurations || data.variants || [],
           data.Project_Type || data.BuildingType || ''
-        )
+        ),
+        acceptedModesOfLeadRegistration: data.Accepted_Modes_of_Lead_Registration || data.accepted_modes_of_lead_registration || null
       };
     }
-    
+
     return {
-      projectName: '', 
-      builderName: '', 
-      reraNumber: '', 
-      projectType: '', 
+      projectName: '',
+      builderName: '',
+      reraNumber: '',
+      projectType: '',
       isAvailable: 'Active',
-      numberOfFloors: '', 
-      possessionDate: '', 
-      openSpace: '', 
-      carpetAreaPercent: '', 
-      ceilingHeight: '', 
-      floorCharger: '', 
-      floorChargerAmount: '', 
-      floorChargerAbove: '', 
-      facingCharges: '', 
-      facingChargesAmount: '', 
-      plc: '', 
-      plcConditions: '', 
-      powerBackup: '', 
-      carParkingCost: '', 
+      numberOfFloors: '',
+      possessionDate: '',
+      openSpace: '',
+      carpetAreaPercent: '',
+      ceilingHeight: '',
+      floorCharger: '',
+      floorChargerAmount: '',
+      floorChargerAbove: '',
+      facingCharges: '',
+      facingChargesAmount: '',
+      plc: '',
+      plcConditions: '',
+      powerBackup: '',
+      carParkingCost: '',
       pricePerSft: '',
       communityType: '',
       totalLandArea: '',
@@ -394,19 +400,20 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
       projectLocation: '',
       city: '',
       state: '',
-      groundVehicleMovement: 'no', 
-      wowFactorAmenity: '', 
-      commissionType: 'commission', 
-      commissionPercentage: '', 
-      payoutPeriod: '', 
-      pocDetails: [{ name: '', contact: '', role: '', cp: false }],
-      unitConfigurations: {}
+      groundVehicleMovement: 'no',
+      wowFactorAmenity: '',
+      commissionType: 'commission',
+      commissionPercentage: '',
+      payoutPeriod: '',
+      pocDetails: [{ name: '', contact: '', role: '', cp: '' }],
+      unitConfigurations: {},
+      acceptedModesOfLeadRegistration: null
     };
   };
 
   const [formData, setFormData] = useState<FormData>(getInitialFormData());
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
 
   const unitTypes = ['1 BHK', '2 BHK', '2.5 BHK', '3 BHK', '3.5 BHK', '4 BHK', '4.5 BHK', '5 BHK', '6 BHK'];
 
@@ -426,7 +433,7 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
   useEffect(() => {
     const hasValidProjectName = formData.projectName && dropdownValues.projectNames.includes(formData.projectName);
     const hasValidReraNumber = formData.reraNumber && dropdownValues.reraNumbers.includes(formData.reraNumber);
-    
+
     // Only fetch once - prefer project name if both are present
     if (hasValidProjectName) {
       fetchPropertyDetails(formData.projectName, undefined, handlePropertyFetched);
@@ -522,7 +529,7 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
         newConfigs[unitType] = {
           enabled: true,
           variants: newConfigs[unitType]?.variants || [
-            isVillaProject 
+            isVillaProject
               ? { sizeSqFt: '', sizeSqYd: '', parkingSlots: '', facing: '', uds: '' }
               : { sizeRange: '', sizeUnit: 'Sq ft', parkingSlots: '', facing: '', uds: '' }
           ],
@@ -542,10 +549,10 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
         ...prev.unitConfigurations,
         [unitType]: {
           ...prev.unitConfigurations[unitType],
-          variants: [...(prev.unitConfigurations[unitType]?.variants || []), 
-            isVillaProject 
-              ? { sizeSqFt: '', sizeSqYd: '', parkingSlots: '', facing: '', uds: '' }
-              : { sizeRange: '', sizeUnit: 'Sq ft', parkingSlots: '', facing: '', uds: '' }
+          variants: [...(prev.unitConfigurations[unitType]?.variants || []),
+          isVillaProject
+            ? { sizeSqFt: '', sizeSqYd: '', parkingSlots: '', facing: '', uds: '' }
+            : { sizeRange: '', sizeUnit: 'Sq ft', parkingSlots: '', facing: '', uds: '' }
           ]
         }
       }
@@ -572,7 +579,7 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
         ...prev.unitConfigurations,
         [unitType]: {
           ...prev.unitConfigurations[unitType],
-          variants: prev.unitConfigurations[unitType]?.variants.map((config: UnitConfiguration, i: number) => 
+          variants: prev.unitConfigurations[unitType]?.variants.map((config: UnitConfiguration, i: number) =>
             i === index ? { ...config, [field]: value } : config
           ) || []
         }
@@ -583,7 +590,7 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
   const addPOC = () => {
     setFormData((prev: FormData) => ({
       ...prev,
-      pocDetails: [...prev.pocDetails, { name: '', contact: '', role: '', cp: false }]
+      pocDetails: [...prev.pocDetails, { name: '', contact: '', role: '', cp: '' }]
     }));
   };
 
@@ -596,10 +603,10 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
     }
   };
 
-  const updatePOC = (index: number, field: 'name' | 'contact' | 'role' | 'cp', value: string | boolean) => {
+  const updatePOC = (index: number, field: 'name' | 'contact' | 'role' | 'cp', value: string) => {
     setFormData((prev: FormData) => ({
       ...prev,
-      pocDetails: prev.pocDetails.map((poc, i) => 
+      pocDetails: prev.pocDetails.map((poc, i) =>
         i === index ? { ...poc, [field]: value } : poc
       )
     }));
@@ -636,17 +643,17 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
         const unitConfigs = shortUnitConfigs[unitType].variants || [];
         unitConfigs.forEach((config: UnitConfiguration) => {
           // For Villa projects, check sizeSqFt and sizeSqYd; for Apartments, check sizeRange
-          const hasRequiredSize = isVillaProject 
+          const hasRequiredSize = isVillaProject
             ? (config.sizeSqFt?.trim() && config.sizeSqYd?.trim())
             : config.sizeRange?.trim();
-            
+
           // Only require the size fields - parking slots can be empty (defaults to 1)
           if (hasRequiredSize) {
             const configObj: any = {
               type: denormalizeUnitType(unitType),
               No_of_car_Parking: config.parkingSlots?.trim() ? Number(config.parkingSlots) : 1
             };
-            
+
             // Add Villa-specific fields or Apartment-specific fields
             if (isVillaProject) {
               configObj.sizeSqFt = Number(config.sizeSqFt);
@@ -655,12 +662,12 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
               configObj.sizeRange = Number(config.sizeRange);
               configObj.sizeUnit = config.sizeUnit || 'Sq ft';
             }
-            
+
             // Add facing if present
             if (config.facing) {
               configObj.facing = config.facing;
             }
-            
+
             // Add UDS if present and is a valid number
             if (config.uds !== undefined && config.uds !== null && config.uds !== '') {
               const udsNum = Number(config.uds);
@@ -668,10 +675,10 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
                 configObj.uds = udsNum;
               }
             }
-            
+
             // Add config sold out status (default to 'active')
             configObj.configsoldoutstatus = config.configSoldOutStatus || 'active';
-            
+
             configurations.push(configObj);
           }
         });
@@ -680,12 +687,12 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
 
     // Add a default configuration if none were validly entered
     if (configurations.length === 0) {
-        configurations.push({
-            type: '2BHK',
-            sizeRange: 1200,
-            sizeUnit: 'Sq ft',
-            No_of_car_Parking: 1,
-        });
+      configurations.push({
+        type: '2BHK',
+        sizeRange: 1200,
+        sizeUnit: 'Sq ft',
+        No_of_car_Parking: 1,
+      });
     }
 
     // 2. Assemble the final API payload using the correct field names
@@ -732,9 +739,9 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
             role: poc.role.trim(),
             cp: poc.cp || false
           }));
-        
+
         const firstPOC = nonEmptyPOCs[0] || { name: '', contact: '', role: '', cp: false };
-        
+
         return {
           pocDetails: nonEmptyPOCs,
           POC_Name: firstPOC.name || '',
@@ -758,7 +765,7 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
       ProjectLocation: data.projectLocation || undefined,
       City: data.city || undefined,
       State: data.state || undefined,
-      
+
       // --- Additional fields (no defaults - only save what user enters) ---
       Construction_Status: undefined,
       No_of_Passenger_lift: undefined,
@@ -768,8 +775,8 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
       Turnaround_Time_for_Lead_Acknowledgement: undefined,
       Is_there_validity_period_for_registered_lead: undefined,
 
-      // --- Registration Modes (no defaults) ---
-      Accepted_Modes_of_Lead_Registration: {
+      // --- Registration Modes (preserve existing if any) ---
+      Accepted_Modes_of_Lead_Registration: data.acceptedModesOfLeadRegistration || {
         WhatsApp: {
           enabled: 'no',
           details: ''
@@ -794,7 +801,7 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
     return apiPayload;
   };
   const validateForm = (): boolean => {
-    const errors: {[key: string]: string} = {};
+    const errors: { [key: string]: string } = {};
 
     // Only validate the three mandatory fields: projectName, builderName, reraNumber
     const requiredFields = [
@@ -878,7 +885,7 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
 
       if (response.ok) {
         let successMessage = 'Form submitted successfully!';
-        
+
         if (result.unified_data_update) {
           if (result.unified_data_update.success) {
             if (result.unified_data_update.required) {
@@ -889,20 +896,20 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
             console.log('ShortFormOnboarding: unified_data status:', result.unified_data_update.message);
           }
         }
-        
+
         alert(successMessage);
         if (onSubmitSuccess) {
           onSubmitSuccess(result.data);
         }
       } else {
         console.error('ShortFormOnboarding: API Error:', result);
-        
+
         let errorMessage = result.message || `An error occurred (Status: ${response.status})`;
-        
+
         if (result.unified_data_update && !result.unified_data_update.success) {
           console.error('ShortFormOnboarding: unified_data sync failed:', result.unified_data_update);
         }
-        
+
         alert(`Submission Failed: ${errorMessage}`);
 
         if (result.errors) {
@@ -954,7 +961,7 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
 
       if (response.ok) {
         let successMessage = 'Draft saved successfully!';
-        
+
         if (result.unified_data_update) {
           if (result.unified_data_update.success) {
             if (result.unified_data_update.required) {
@@ -965,21 +972,21 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
             console.log('handleSaveDraft: unified_data status:', result.unified_data_update.message);
           }
         }
-        
+
         alert(successMessage);
         if (onDraftSaved) {
           onDraftSaved(result.data);
         }
       } else {
         console.error('API Error:', result);
-        
+
         let errorMessage = result.message || `Failed to save draft (Status: ${response.status})`;
-        
+
         if (result.rollback_needed && result.unified_data_update) {
           errorMessage += '\n\nNote: Your draft was saved but failed to sync to the verified database. Please try again.';
           console.error('handleSaveDraft: unified_data sync failed:', result.unified_data_update);
         }
-        
+
         alert(`Draft Save Failed: ${errorMessage}`);
       }
     } catch (error) {
@@ -995,7 +1002,7 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {isViewMode && onBackToDashboard && (
-        <Button 
+        <Button
           onClick={onBackToDashboard}
           variant="outline"
           className="mb-4"
@@ -1024,11 +1031,11 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-builderName">Builder Name *</Label>
-            <Input disabled={isViewMode} 
-              id="sf-builderName" 
-              value={formData.builderName} 
-              onChange={(e) => handleDeepChange({ builderName: e.target.value })} 
-              placeholder="e.g., Urban Rise" 
+            <Input disabled={isViewMode}
+              id="sf-builderName"
+              value={formData.builderName}
+              onChange={(e) => handleDeepChange({ builderName: e.target.value })}
+              placeholder="e.g., Urban Rise"
               className={!isFieldValid('builderName') ? 'border-red-500' : ''}
             />
             {getFieldError('builderName') && (
@@ -1069,7 +1076,7 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
               Is Available
             </Label>
             <div className="flex items-center gap-3">
-              <Switch 
+              <Switch
                 id="sf-isAvailable"
                 checked={formData.isAvailable === 'Active'}
                 onCheckedChange={(checked) => handleDeepChange({ isAvailable: checked ? 'Active' : 'Inactive' })}
@@ -1082,13 +1089,13 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-numberOfFloors">Number of Floors</Label>
-            <Input disabled={isViewMode} 
-              id="sf-numberOfFloors" 
-              type="text" 
-              inputMode="numeric" 
-              value={formData.numberOfFloors} 
-              onChange={(e) => handleDeepChange({ numberOfFloors: e.target.value.replace(/[^0-9]/g, '') })} 
-              placeholder="e.g., 30" 
+            <Input disabled={isViewMode}
+              id="sf-numberOfFloors"
+              type="text"
+              inputMode="numeric"
+              value={formData.numberOfFloors}
+              onChange={(e) => handleDeepChange({ numberOfFloors: e.target.value.replace(/[^0-9]/g, '') })}
+              placeholder="e.g., 30"
               maxLength={3}
               className={!isFieldValid('numberOfFloors') ? 'border-red-500' : ''}
             />
@@ -1124,10 +1131,10 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
                 readOnly
               />
             ) : (
-              <Input disabled={isViewMode} 
-                id="sf-possessionDate" 
-                type="date" 
-                value={formData.possessionDate} 
+              <Input disabled={isViewMode}
+                id="sf-possessionDate"
+                type="date"
+                value={formData.possessionDate}
                 onChange={(e) => handleDeepChange({ possessionDate: e.target.value })}
                 className={!isFieldValid('possessionDate') ? 'border-red-500' : ''}
               />
@@ -1138,13 +1145,13 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-openSpace">Open Space (%)</Label>
-            <Input disabled={isViewMode} 
-              id="sf-openSpace" 
-              type="text" 
-              inputMode="numeric" 
-              value={formData.openSpace} 
-              onChange={(e) => handleDeepChange({ openSpace: e.target.value.replace(/[^0-9]/g, '') })} 
-              placeholder="e.g., 70" 
+            <Input disabled={isViewMode}
+              id="sf-openSpace"
+              type="text"
+              inputMode="numeric"
+              value={formData.openSpace}
+              onChange={(e) => handleDeepChange({ openSpace: e.target.value.replace(/[^0-9]/g, '') })}
+              placeholder="e.g., 70"
               maxLength={3}
               className={!isFieldValid('openSpace') ? 'border-red-500' : ''}
             />
@@ -1154,13 +1161,13 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-carpetAreaPercent">Carpet Area %</Label>
-            <Input disabled={isViewMode} 
-              id="sf-carpetAreaPercent" 
-              type="text" 
-              inputMode="numeric" 
-              value={formData.carpetAreaPercent} 
-              onChange={(e) => handleDeepChange({ carpetAreaPercent: e.target.value.replace(/[^0-9]/g, '') })} 
-              placeholder="e.g., 20" 
+            <Input disabled={isViewMode}
+              id="sf-carpetAreaPercent"
+              type="text"
+              inputMode="numeric"
+              value={formData.carpetAreaPercent}
+              onChange={(e) => handleDeepChange({ carpetAreaPercent: e.target.value.replace(/[^0-9]/g, '') })}
+              placeholder="e.g., 20"
               maxLength={3}
               className={!isFieldValid('carpetAreaPercent') ? 'border-red-500' : ''}
             />
@@ -1170,13 +1177,13 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-ceilingHeight">Ceiling Height (ft)</Label>
-            <Input disabled={isViewMode} 
-              id="sf-ceilingHeight" 
-              type="text" 
-              inputMode="numeric" 
-              value={formData.ceilingHeight} 
-              onChange={(e) => handleDeepChange({ ceilingHeight: e.target.value.replace(/[^0-9]/g, '') })} 
-              placeholder="e.g., 10" 
+            <Input disabled={isViewMode}
+              id="sf-ceilingHeight"
+              type="text"
+              inputMode="numeric"
+              value={formData.ceilingHeight}
+              onChange={(e) => handleDeepChange({ ceilingHeight: e.target.value.replace(/[^0-9]/g, '') })}
+              placeholder="e.g., 10"
               maxLength={2}
               className={!isFieldValid('ceilingHeight') ? 'border-red-500' : ''}
             />
@@ -1186,12 +1193,12 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-totalLandArea">Total Land Area (acres)</Label>
-            <Input disabled={isViewMode} 
-              id="sf-totalLandArea" 
-              type="text" 
-              value={formData.totalLandArea} 
-              onChange={(e) => handleDeepChange({ totalLandArea: e.target.value })} 
-              placeholder="e.g., 5.5" 
+            <Input disabled={isViewMode}
+              id="sf-totalLandArea"
+              type="text"
+              value={formData.totalLandArea}
+              onChange={(e) => handleDeepChange({ totalLandArea: e.target.value })}
+              placeholder="e.g., 5.5"
               className={!isFieldValid('totalLandArea') ? 'border-red-500' : ''}
             />
             {getFieldError('totalLandArea') && (
@@ -1200,25 +1207,25 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-numberOfTowers">Number of Towers</Label>
-            <Input disabled={isViewMode} 
-              id="sf-numberOfTowers" 
-              type="text" 
-              inputMode="numeric" 
-              value={formData.numberOfTowers} 
-              onChange={(e) => handleDeepChange({ numberOfTowers: e.target.value.replace(/[^0-9]/g, '') })} 
-              placeholder="e.g., 3" 
+            <Input disabled={isViewMode}
+              id="sf-numberOfTowers"
+              type="text"
+              inputMode="numeric"
+              value={formData.numberOfTowers}
+              onChange={(e) => handleDeepChange({ numberOfTowers: e.target.value.replace(/[^0-9]/g, '') })}
+              placeholder="e.g., 3"
               maxLength={3}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-totalUnits">Total Units</Label>
-            <Input disabled={isViewMode} 
-              id="sf-totalUnits" 
-              type="text" 
-              inputMode="numeric" 
-              value={formData.totalUnits} 
-              onChange={(e) => handleDeepChange({ totalUnits: e.target.value.replace(/[^0-9]/g, '') })} 
-              placeholder="e.g., 500" 
+            <Input disabled={isViewMode}
+              id="sf-totalUnits"
+              type="text"
+              inputMode="numeric"
+              value={formData.totalUnits}
+              onChange={(e) => handleDeepChange({ totalUnits: e.target.value.replace(/[^0-9]/g, '') })}
+              placeholder="e.g., 500"
               maxLength={5}
               className={!isFieldValid('totalUnits') ? 'border-red-500' : ''}
             />
@@ -1228,32 +1235,32 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-brochureLink">Brochure Link</Label>
-            <Input disabled={isViewMode} 
-              id="sf-brochureLink" 
-              type="url" 
-              value={formData.brochureLink} 
-              onChange={(e) => handleDeepChange({ brochureLink: e.target.value })} 
-              placeholder="https://example.com/brochure.pdf" 
+            <Input disabled={isViewMode}
+              id="sf-brochureLink"
+              type="url"
+              value={formData.brochureLink}
+              onChange={(e) => handleDeepChange({ brochureLink: e.target.value })}
+              placeholder="https://example.com/brochure.pdf"
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-priceSheetLink">Price Sheet Link</Label>
-            <Input disabled={isViewMode} 
-              id="sf-priceSheetLink" 
-              type="url" 
-              value={formData.priceSheetLink} 
-              onChange={(e) => handleDeepChange({ priceSheetLink: e.target.value })} 
-              placeholder="https://example.com/pricesheet.pdf" 
+            <Input disabled={isViewMode}
+              id="sf-priceSheetLink"
+              type="url"
+              value={formData.priceSheetLink}
+              onChange={(e) => handleDeepChange({ priceSheetLink: e.target.value })}
+              placeholder="https://example.com/pricesheet.pdf"
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="sf-projectLocation">Project Location</Label>
-            <Input disabled={isViewMode} 
-              id="sf-projectLocation" 
-              type="text" 
-              value={formData.projectLocation} 
-              onChange={(e) => handleDeepChange({ projectLocation: e.target.value })} 
-              placeholder="e.g., Whitefield, Bangalore" 
+            <Input disabled={isViewMode}
+              id="sf-projectLocation"
+              type="text"
+              value={formData.projectLocation}
+              onChange={(e) => handleDeepChange({ projectLocation: e.target.value })}
+              placeholder="e.g., Whitefield, Bangalore"
             />
           </div>
           <div className="space-y-2">
@@ -1287,90 +1294,90 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
       <Card>
         <CardHeader><CardTitle>Key Financials & Power</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-            <div className="space-y-2">
-                <Label htmlFor="sf-pricePerSft">Price per Sft (₹)</Label>
-                <Input disabled={isViewMode} 
-                  id="sf-pricePerSft" 
-                  type="text" 
-                  inputMode="numeric" 
-                  value={formData.pricePerSft} 
-                  onChange={(e) => handleDeepChange({ pricePerSft: e.target.value.replace(/[^0-9]/g, '') })} 
-                  placeholder="e.g., 5000" 
-                  maxLength={6}
-                  className={!isFieldValid('pricePerSft') ? 'border-red-500' : ''}
-                />
-                {getFieldError('pricePerSft') && (
-                  <p className="text-red-500 text-sm">{getFieldError('pricePerSft')}</p>
-                )}
-                <p className="text-xs text-gray-500">Range: ₹100 - ₹100,000 per sqft</p>
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="sf-carParkingCost">Amount for Extra Car Parking (₹)</Label>
-                <Input disabled={isViewMode} 
-                  id="sf-carParkingCost" 
-                  type="text" 
-                  inputMode="numeric" 
-                  value={formData.carParkingCost} 
-                  onChange={(e) => handleDeepChange({ carParkingCost: e.target.value.replace(/[^0-9]/g, '') })} 
-                  placeholder="e.g., 250000" 
-                  maxLength={8}
-                />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="sf-powerBackup">Power Backup</Label>
-                <Select disabled={isViewMode} onValueChange={(v) => handleDeepChange({ powerBackup: v })} value={formData.powerBackup}>
-                    <SelectTrigger id="sf-powerBackup" className={!isFieldValid('powerBackup') ? 'border-red-500' : ''}>
-                        <SelectValue placeholder="Select power backup type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Full">Full</SelectItem>
-                        <SelectItem value="Partial">Partial</SelectItem>
-                        <SelectItem value="None">None</SelectItem>
-                    </SelectContent>
-                </Select>
-                {getFieldError('powerBackup') && (
-                  <p className="text-red-500 text-sm">{getFieldError('powerBackup')}</p>
-                )}
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="sf-groundVehicleMovement">Ground Vehicle Movement</Label>
-                <Select disabled={isViewMode} onValueChange={(v) => handleDeepChange({ groundVehicleMovement: v })} value={formData.groundVehicleMovement}>
-                    <SelectTrigger id="sf-groundVehicleMovement">
-                        <SelectValue placeholder="Select vehicle movement option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="yes">Yes</SelectItem>
-                        <SelectItem value="no">No</SelectItem>
-                        <SelectItem value="partial">Partial</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="sf-commissionPercentage">Commission Percentage (%)</Label>
-                <Input disabled={isViewMode} 
-                  id="sf-commissionPercentage" 
-                  type="text" 
-                  inputMode="numeric" 
-                  value={formData.commissionPercentage} 
-                  onChange={(e) => handleDeepChange({ commissionPercentage: e.target.value.replace(/[^0-9.]/g, '') })} 
-                  placeholder="e.g., 2.5" 
-                  maxLength={5}
-                />
-                <p className="text-xs text-gray-500">Range: 0-100%</p>
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="sf-payoutPeriod">Payout Period (Days)</Label>
-                <Input disabled={isViewMode} 
-                  id="sf-payoutPeriod" 
-                  type="text" 
-                  inputMode="numeric" 
-                  value={formData.payoutPeriod} 
-                  onChange={(e) => handleDeepChange({ payoutPeriod: e.target.value.replace(/[^0-9]/g, '') })} 
-                  placeholder="e.g., 30" 
-                  maxLength={3}
-                />
-                <p className="text-xs text-gray-500">Range: 1-365 days</p>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="sf-pricePerSft">Price per Sft (₹)</Label>
+            <Input disabled={isViewMode}
+              id="sf-pricePerSft"
+              type="text"
+              inputMode="numeric"
+              value={formData.pricePerSft}
+              onChange={(e) => handleDeepChange({ pricePerSft: e.target.value.replace(/[^0-9]/g, '') })}
+              placeholder="e.g., 5000"
+              maxLength={6}
+              className={!isFieldValid('pricePerSft') ? 'border-red-500' : ''}
+            />
+            {getFieldError('pricePerSft') && (
+              <p className="text-red-500 text-sm">{getFieldError('pricePerSft')}</p>
+            )}
+            <p className="text-xs text-gray-500">Range: ₹100 - ₹100,000 per sqft</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sf-carParkingCost">Amount for Extra Car Parking (₹)</Label>
+            <Input disabled={isViewMode}
+              id="sf-carParkingCost"
+              type="text"
+              inputMode="numeric"
+              value={formData.carParkingCost}
+              onChange={(e) => handleDeepChange({ carParkingCost: e.target.value.replace(/[^0-9]/g, '') })}
+              placeholder="e.g., 250000"
+              maxLength={8}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sf-powerBackup">Power Backup</Label>
+            <Select disabled={isViewMode} onValueChange={(v) => handleDeepChange({ powerBackup: v })} value={formData.powerBackup}>
+              <SelectTrigger id="sf-powerBackup" className={!isFieldValid('powerBackup') ? 'border-red-500' : ''}>
+                <SelectValue placeholder="Select power backup type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Full">Full</SelectItem>
+                <SelectItem value="Partial">Partial</SelectItem>
+                <SelectItem value="None">None</SelectItem>
+              </SelectContent>
+            </Select>
+            {getFieldError('powerBackup') && (
+              <p className="text-red-500 text-sm">{getFieldError('powerBackup')}</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sf-groundVehicleMovement">Ground Vehicle Movement</Label>
+            <Select disabled={isViewMode} onValueChange={(v) => handleDeepChange({ groundVehicleMovement: v })} value={formData.groundVehicleMovement}>
+              <SelectTrigger id="sf-groundVehicleMovement">
+                <SelectValue placeholder="Select vehicle movement option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yes">Yes</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sf-commissionPercentage">Commission Percentage (%)</Label>
+            <Input disabled={isViewMode}
+              id="sf-commissionPercentage"
+              type="text"
+              inputMode="numeric"
+              value={formData.commissionPercentage}
+              onChange={(e) => handleDeepChange({ commissionPercentage: e.target.value.replace(/[^0-9.]/g, '') })}
+              placeholder="e.g., 2.5"
+              maxLength={5}
+            />
+            <p className="text-xs text-gray-500">Range: 0-100%</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sf-payoutPeriod">Payout Period (Days)</Label>
+            <Input disabled={isViewMode}
+              id="sf-payoutPeriod"
+              type="text"
+              inputMode="numeric"
+              value={formData.payoutPeriod}
+              onChange={(e) => handleDeepChange({ payoutPeriod: e.target.value.replace(/[^0-9]/g, '') })}
+              placeholder="e.g., 30"
+              maxLength={3}
+            />
+            <p className="text-xs text-gray-500">Range: 1-365 days</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -1383,10 +1390,10 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
           {unitTypes.map((unitType) => (
             <div key={unitType} className="border rounded-lg p-4">
               <div className="flex items-center space-x-2 mb-4">
-                <Checkbox 
-                  id={`unit-${unitType}`} 
-                  checked={formData.unitConfigurations[unitType]?.enabled || false} 
-                  onCheckedChange={(c) => handleUnitConfigToggle(unitType, c as boolean)} 
+                <Checkbox
+                  id={`unit-${unitType}`}
+                  checked={formData.unitConfigurations[unitType]?.enabled || false}
+                  onCheckedChange={(c) => handleUnitConfigToggle(unitType, c as boolean)}
                 />
                 <Label htmlFor={`unit-${unitType}`} className="font-medium">{unitType}</Label>
               </div>
@@ -1397,229 +1404,229 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
                     {(formData.unitConfigurations[unitType]?.variants || []).map((config: UnitConfiguration, i: number) => {
                       const isVillaProject = mapProjectType(formData.projectType) === 'Villa';
                       return (
-                      <div key={i} className="border rounded-lg p-4 space-y-3">
-                        {isVillaProject ? (
-                          // Villa Project Layout: Separate Sq ft and Sq Yd fields
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                            <div className="space-y-2">
-                              <Label htmlFor={`sizeSqFt-${unitType}-${i}`}>Size (Sq ft)</Label>
-                              <Input disabled={isViewMode} 
-                                id={`sizeSqFt-${unitType}-${i}`}
-                                type="text" 
-                                inputMode="numeric" 
-                                value={config.sizeSqFt || ''} 
-                                placeholder="e.g., 1200" 
-                                maxLength={5}
-                                onChange={(e) => updateUnitConfiguration(unitType, i, 'sizeSqFt', e.target.value.replace(/[^0-9]/g, ''))} 
-                              />
-                              <p className="text-xs text-gray-500">Min: 100, Max: 10,000</p>
-                              {config.sizeSqFt && parseInt(config.sizeSqFt) < 100 && (
-                                <p className="text-red-500 text-xs">Size must be at least 100</p>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`sizeSqYd-${unitType}-${i}`}>Size (Sq Yd)</Label>
-                              <Input disabled={isViewMode} 
-                                id={`sizeSqYd-${unitType}-${i}`}
-                                type="text" 
-                                inputMode="numeric" 
-                                value={config.sizeSqYd || ''} 
-                                placeholder="e.g., 133" 
-                                maxLength={5}
-                                onChange={(e) => updateUnitConfiguration(unitType, i, 'sizeSqYd', e.target.value.replace(/[^0-9]/g, ''))} 
-                              />
-                              <p className="text-xs text-gray-500">Min: 10, Max: 2,000</p>
-                              {config.sizeSqYd && parseInt(config.sizeSqYd) < 10 && (
-                                <p className="text-red-500 text-xs">Size must be at least 10</p>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`parkingSlots-${unitType}-${i}`}>Car Parking</Label>
-                              <Input disabled={isViewMode} 
-                                id={`parkingSlots-${unitType}-${i}`}
-                                type="text" 
-                                inputMode="numeric" 
-                                value={config.parkingSlots} 
-                                placeholder="e.g., 1" 
-                                maxLength={2}
-                                onChange={(e) => updateUnitConfiguration(unitType, i, 'parkingSlots', e.target.value.replace(/[^0-9]/g, ''))} 
-                              />
-                              <p className="text-xs text-gray-500">Range: 1-10</p>
-                              {config.parkingSlots && (parseInt(config.parkingSlots) < 1 || parseInt(config.parkingSlots) > 10) && (
-                                <p className="text-red-500 text-xs">Must be between 1 and 10</p>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`facing-${unitType}-${i}`}>Facing</Label>
-                              <Select 
-                                value={config.facing || ''} 
-                                onValueChange={(value) => updateUnitConfiguration(unitType, i, 'facing', value)}
-                                disabled={isViewMode}
-                              >
-                                <SelectTrigger id={`facing-${unitType}-${i}`}>
-                                  <SelectValue placeholder="Select facing" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="North">North</SelectItem>
-                                  <SelectItem value="East">East</SelectItem>
-                                  <SelectItem value="West">West</SelectItem>
-                                  <SelectItem value="South">South</SelectItem>
-                                  <SelectItem value="North-East">North-East</SelectItem>
-                                  <SelectItem value="North-West">North-West</SelectItem>
-                                  <SelectItem value="South-East">South-East</SelectItem>
-                                  <SelectItem value="South-West">South-West</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`uds-${unitType}-${i}`}>UDS</Label>
-                              <Input disabled={isViewMode} 
-                                id={`uds-${unitType}-${i}`}
-                                type="text" 
-                                inputMode="numeric" 
-                                value={config.uds || ''} 
-                                placeholder="e.g., 500" 
-                                onChange={(e) => updateUnitConfiguration(unitType, i, 'uds', e.target.value.replace(/[^0-9.]/g, ''))} 
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`configSoldOutStatus-villa-${unitType}-${i}`} className="flex items-center gap-2">
-                                Config Available
-                              </Label>
-                              <div className="flex items-center gap-3">
-                                <Switch 
-                                  id={`configSoldOutStatus-villa-${unitType}-${i}`}
-                                  checked={(config.configSoldOutStatus || 'active') === 'active'}
-                                  onCheckedChange={(checked) => updateUnitConfiguration(unitType, i, 'configSoldOutStatus', checked ? 'active' : 'soldout')}
-                                  disabled={isViewMode}
+                        <div key={i} className="border rounded-lg p-4 space-y-3">
+                          {isVillaProject ? (
+                            // Villa Project Layout: Separate Sq ft and Sq Yd fields
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                              <div className="space-y-2">
+                                <Label htmlFor={`sizeSqFt-${unitType}-${i}`}>Size (Sq ft)</Label>
+                                <Input disabled={isViewMode}
+                                  id={`sizeSqFt-${unitType}-${i}`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={config.sizeSqFt || ''}
+                                  placeholder="e.g., 1200"
+                                  maxLength={5}
+                                  onChange={(e) => updateUnitConfiguration(unitType, i, 'sizeSqFt', e.target.value.replace(/[^0-9]/g, ''))}
                                 />
-                                <span className="text-sm text-muted-foreground">
-                                  {(config.configSoldOutStatus || 'active') === 'active' ? 'Active' : 'Sold Out'}
-                                </span>
+                                <p className="text-xs text-gray-500">Min: 100, Max: 10,000</p>
+                                {config.sizeSqFt && parseInt(config.sizeSqFt) < 100 && (
+                                  <p className="text-red-500 text-xs">Size must be at least 100</p>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`sizeSqYd-${unitType}-${i}`}>Size (Sq Yd)</Label>
+                                <Input disabled={isViewMode}
+                                  id={`sizeSqYd-${unitType}-${i}`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={config.sizeSqYd || ''}
+                                  placeholder="e.g., 133"
+                                  maxLength={5}
+                                  onChange={(e) => updateUnitConfiguration(unitType, i, 'sizeSqYd', e.target.value.replace(/[^0-9]/g, ''))}
+                                />
+                                <p className="text-xs text-gray-500">Min: 10, Max: 2,000</p>
+                                {config.sizeSqYd && parseInt(config.sizeSqYd) < 10 && (
+                                  <p className="text-red-500 text-xs">Size must be at least 10</p>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`parkingSlots-${unitType}-${i}`}>Car Parking</Label>
+                                <Input disabled={isViewMode}
+                                  id={`parkingSlots-${unitType}-${i}`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={config.parkingSlots}
+                                  placeholder="e.g., 1"
+                                  maxLength={2}
+                                  onChange={(e) => updateUnitConfiguration(unitType, i, 'parkingSlots', e.target.value.replace(/[^0-9]/g, ''))}
+                                />
+                                <p className="text-xs text-gray-500">Range: 1-10</p>
+                                {config.parkingSlots && (parseInt(config.parkingSlots) < 1 || parseInt(config.parkingSlots) > 10) && (
+                                  <p className="text-red-500 text-xs">Must be between 1 and 10</p>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`facing-${unitType}-${i}`}>Facing</Label>
+                                <Select
+                                  value={config.facing || ''}
+                                  onValueChange={(value) => updateUnitConfiguration(unitType, i, 'facing', value)}
+                                  disabled={isViewMode}
+                                >
+                                  <SelectTrigger id={`facing-${unitType}-${i}`}>
+                                    <SelectValue placeholder="Select facing" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="North">North</SelectItem>
+                                    <SelectItem value="East">East</SelectItem>
+                                    <SelectItem value="West">West</SelectItem>
+                                    <SelectItem value="South">South</SelectItem>
+                                    <SelectItem value="North-East">North-East</SelectItem>
+                                    <SelectItem value="North-West">North-West</SelectItem>
+                                    <SelectItem value="South-East">South-East</SelectItem>
+                                    <SelectItem value="South-West">South-West</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`uds-${unitType}-${i}`}>UDS</Label>
+                                <Input disabled={isViewMode}
+                                  id={`uds-${unitType}-${i}`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={config.uds || ''}
+                                  placeholder="e.g., 500"
+                                  onChange={(e) => updateUnitConfiguration(unitType, i, 'uds', e.target.value.replace(/[^0-9.]/g, ''))}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`configSoldOutStatus-villa-${unitType}-${i}`} className="flex items-center gap-2">
+                                  Config Available
+                                </Label>
+                                <div className="flex items-center gap-3">
+                                  <Switch
+                                    id={`configSoldOutStatus-villa-${unitType}-${i}`}
+                                    checked={(config.configSoldOutStatus || 'active') === 'active'}
+                                    onCheckedChange={(checked) => updateUnitConfiguration(unitType, i, 'configSoldOutStatus', checked ? 'active' : 'soldout')}
+                                    disabled={isViewMode}
+                                  />
+                                  <span className="text-sm text-muted-foreground">
+                                    {(config.configSoldOutStatus || 'active') === 'active' ? 'Active' : 'Sold Out'}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ) : (
-                          // Apartment Project Layout: Size Range and Size Unit fields
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                            <div className="space-y-2">
-                              <Label htmlFor={`sizeRange-${unitType}-${i}`}>Size Range</Label>
-                              <Input disabled={isViewMode} 
-                                id={`sizeRange-${unitType}-${i}`}
-                                type="text" 
-                                inputMode="numeric" 
-                                value={config.sizeRange || ''} 
-                                placeholder="e.g., 1200" 
-                                maxLength={5}
-                                onChange={(e) => updateUnitConfiguration(unitType, i, 'sizeRange', e.target.value.replace(/[^0-9]/g, ''))} 
-                              />
-                              <p className="text-xs text-gray-500">Min: 100, Max: 10,000</p>
-                              {config.sizeRange && parseInt(config.sizeRange) < 100 && (
-                                <p className="text-red-500 text-xs">Size must be at least 100</p>
-                              )}
+                          ) : (
+                            // Apartment Project Layout: Size Range and Size Unit fields
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                              <div className="space-y-2">
+                                <Label htmlFor={`sizeRange-${unitType}-${i}`}>Size Range</Label>
+                                <Input disabled={isViewMode}
+                                  id={`sizeRange-${unitType}-${i}`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={config.sizeRange || ''}
+                                  placeholder="e.g., 1200"
+                                  maxLength={5}
+                                  onChange={(e) => updateUnitConfiguration(unitType, i, 'sizeRange', e.target.value.replace(/[^0-9]/g, ''))}
+                                />
+                                <p className="text-xs text-gray-500">Min: 100, Max: 10,000</p>
+                                {config.sizeRange && parseInt(config.sizeRange) < 100 && (
+                                  <p className="text-red-500 text-xs">Size must be at least 100</p>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`sizeUnit-${unitType}-${i}`}>Size Unit</Label>
+                                <Select
+                                  value={config.sizeUnit || 'Sq ft'}
+                                  onValueChange={(value) => updateUnitConfiguration(unitType, i, 'sizeUnit', value)}
+                                >
+                                  <SelectTrigger id={`sizeUnit-${unitType}-${i}`}>
+                                    <SelectValue placeholder="Select unit" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Sq ft">Sq ft</SelectItem>
+                                    <SelectItem value="Sq Yd">Sq Yd</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`parkingSlots-${unitType}-${i}`}>Car Parking</Label>
+                                <Input disabled={isViewMode}
+                                  id={`parkingSlots-${unitType}-${i}`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={config.parkingSlots}
+                                  placeholder="e.g., 1"
+                                  maxLength={2}
+                                  onChange={(e) => updateUnitConfiguration(unitType, i, 'parkingSlots', e.target.value.replace(/[^0-9]/g, ''))}
+                                />
+                                <p className="text-xs text-gray-500">Range: 1-10</p>
+                                {config.parkingSlots && (parseInt(config.parkingSlots) < 1 || parseInt(config.parkingSlots) > 10) && (
+                                  <p className="text-red-500 text-xs">Must be between 1 and 10</p>
+                                )}
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`facing-${unitType}-${i}`}>Facing</Label>
+                                <Select
+                                  value={config.facing || ''}
+                                  onValueChange={(value) => updateUnitConfiguration(unitType, i, 'facing', value)}
+                                  disabled={isViewMode}
+                                >
+                                  <SelectTrigger id={`facing-${unitType}-${i}`}>
+                                    <SelectValue placeholder="Select facing" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="North">North</SelectItem>
+                                    <SelectItem value="East">East</SelectItem>
+                                    <SelectItem value="West">West</SelectItem>
+                                    <SelectItem value="South">South</SelectItem>
+                                    <SelectItem value="North-East">North-East</SelectItem>
+                                    <SelectItem value="North-West">North-West</SelectItem>
+                                    <SelectItem value="South-East">South-East</SelectItem>
+                                    <SelectItem value="South-West">South-West</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`uds-${unitType}-${i}`}>UDS</Label>
+                                <Input disabled={isViewMode}
+                                  id={`uds-${unitType}-${i}`}
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={config.uds || ''}
+                                  placeholder="e.g., 500"
+                                  onChange={(e) => updateUnitConfiguration(unitType, i, 'uds', e.target.value.replace(/[^0-9.]/g, ''))}
+                                />
+                              </div>
                             </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`sizeUnit-${unitType}-${i}`}>Size Unit</Label>
-                              <Select 
-                                value={config.sizeUnit || 'Sq ft'} 
-                                onValueChange={(value) => updateUnitConfiguration(unitType, i, 'sizeUnit', value)}
-                              >
-                                <SelectTrigger id={`sizeUnit-${unitType}-${i}`}>
-                                  <SelectValue placeholder="Select unit" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Sq ft">Sq ft</SelectItem>
-                                  <SelectItem value="Sq Yd">Sq Yd</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`parkingSlots-${unitType}-${i}`}>Car Parking</Label>
-                              <Input disabled={isViewMode} 
-                                id={`parkingSlots-${unitType}-${i}`}
-                                type="text" 
-                                inputMode="numeric" 
-                                value={config.parkingSlots} 
-                                placeholder="e.g., 1" 
-                                maxLength={2}
-                                onChange={(e) => updateUnitConfiguration(unitType, i, 'parkingSlots', e.target.value.replace(/[^0-9]/g, ''))} 
-                              />
-                              <p className="text-xs text-gray-500">Range: 1-10</p>
-                              {config.parkingSlots && (parseInt(config.parkingSlots) < 1 || parseInt(config.parkingSlots) > 10) && (
-                                <p className="text-red-500 text-xs">Must be between 1 and 10</p>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`facing-${unitType}-${i}`}>Facing</Label>
-                              <Select 
-                                value={config.facing || ''} 
-                                onValueChange={(value) => updateUnitConfiguration(unitType, i, 'facing', value)}
+                          )}
+                          <div className="space-y-2">
+                            <Label htmlFor={`configSoldOutStatus-${unitType}-${i}`} className="flex items-center gap-2">
+                              Config Available
+                            </Label>
+                            <div className="flex items-center gap-3">
+                              <Switch
+                                id={`configSoldOutStatus-${unitType}-${i}`}
+                                checked={(config.configSoldOutStatus || 'active') === 'active'}
+                                onCheckedChange={(checked) => updateUnitConfiguration(unitType, i, 'configSoldOutStatus', checked ? 'active' : 'soldout')}
                                 disabled={isViewMode}
-                              >
-                                <SelectTrigger id={`facing-${unitType}-${i}`}>
-                                  <SelectValue placeholder="Select facing" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="North">North</SelectItem>
-                                  <SelectItem value="East">East</SelectItem>
-                                  <SelectItem value="West">West</SelectItem>
-                                  <SelectItem value="South">South</SelectItem>
-                                  <SelectItem value="North-East">North-East</SelectItem>
-                                  <SelectItem value="North-West">North-West</SelectItem>
-                                  <SelectItem value="South-East">South-East</SelectItem>
-                                  <SelectItem value="South-West">South-West</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`uds-${unitType}-${i}`}>UDS</Label>
-                              <Input disabled={isViewMode} 
-                                id={`uds-${unitType}-${i}`}
-                                type="text" 
-                                inputMode="numeric" 
-                                value={config.uds || ''} 
-                                placeholder="e.g., 500" 
-                                onChange={(e) => updateUnitConfiguration(unitType, i, 'uds', e.target.value.replace(/[^0-9.]/g, ''))} 
                               />
+                              <span className="text-sm text-muted-foreground">
+                                {(config.configSoldOutStatus || 'active') === 'active' ? 'Active' : 'Sold Out'}
+                              </span>
                             </div>
                           </div>
-                        )}
-                        <div className="space-y-2">
-                          <Label htmlFor={`configSoldOutStatus-${unitType}-${i}`} className="flex items-center gap-2">
-                            Config Available
-                          </Label>
-                          <div className="flex items-center gap-3">
-                            <Switch 
-                              id={`configSoldOutStatus-${unitType}-${i}`}
-                              checked={(config.configSoldOutStatus || 'active') === 'active'}
-                              onCheckedChange={(checked) => updateUnitConfiguration(unitType, i, 'configSoldOutStatus', checked ? 'active' : 'soldout')}
-                              disabled={isViewMode}
-                            />
-                            <span className="text-sm text-muted-foreground">
-                              {(config.configSoldOutStatus || 'active') === 'active' ? 'Active' : 'Sold Out'}
-                            </span>
-                          </div>
+                          {(formData.unitConfigurations[unitType]?.variants.length || 0) > 1 && (
+                            <div className="flex justify-end">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeUnitConfiguration(unitType, i)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Remove
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        {(formData.unitConfigurations[unitType]?.variants.length || 0) > 1 && (
-                          <div className="flex justify-end">
-                            <Button 
-                              type="button" 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => removeUnitConfiguration(unitType, i)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Remove
-                            </Button>
-                          </div>
-                        )}
-                      </div>
                       );
                     })}
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => addUnitConfiguration(unitType)} 
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => addUnitConfiguration(unitType)}
                       className="w-full flex items-center gap-2"
                     >
                       <Plus className="w-4 h-4" />
@@ -1706,16 +1713,25 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
                   )}
                 </div>
               </div>
-              <div className="flex items-center space-x-2 mt-4">
-                <Checkbox
-                  id={`pocCP-${index}`}
-                  checked={poc.cp || false}
-                  onCheckedChange={(checked) => updatePOC(index, 'cp', checked as boolean)}
+              <div className="space-y-2 mt-4">
+                <Label htmlFor={`pocCP-${index}`}>CP Status</Label>
+                <Select
+                  value={poc.cp || ''}
+                  onValueChange={(value) => updatePOC(index, 'cp', value)}
                   disabled={isViewMode}
-                />
-                <Label htmlFor={`pocCP-${index}`} className="text-sm font-normal cursor-pointer">
-                  CP
-                </Label>
+                >
+                  <SelectTrigger id={`pocCP-${index}`} className={validationErrors[`pocDetails.${index}.cp`] ? 'border-red-500' : ''}>
+                    <SelectValue placeholder="Select CP status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Accepting">Accepting</SelectItem>
+                    <SelectItem value="On-boarded">On-boarded</SelectItem>
+                    <SelectItem value="Not-accepted">Not-accepted</SelectItem>
+                  </SelectContent>
+                </Select>
+                {validationErrors[`pocDetails.${index}.cp`] && (
+                  <p className="text-red-500 text-xs">{validationErrors[`pocDetails.${index}.cp`]}</p>
+                )}
               </div>
             </div>
           ))}
@@ -1724,8 +1740,8 @@ export const ShortFormOnboarding: React.FC<ShortFormOnboardingProps> = ({ agentD
 
       {!isViewMode && (
         <div className="flex justify-center gap-4 pt-6">
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             disabled={isSubmitting}
             className="bg-orange-600 hover:bg-orange-700 px-8 py-3 text-lg"
           >

@@ -34,11 +34,19 @@ const SharePage = () => {
   const [friendNumber, setFriendNumber] = useState("");
   const [savingFriend, setSavingFriend] = useState(false);
   const [expandedRestaurants, setExpandedRestaurants] = useState<Record<number, boolean>>({});
+  const [shareSessionId] = useState(() => {
+    let sid = sessionStorage.getItem(`share_sid_${token}`);
+    if (!sid) {
+      sid = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem(`share_sid_${token}`, sid);
+    }
+    return sid;
+  });
 
   useEffect(() => {
     const fetchShareData = async () => {
       try {
-        const response = await fetch(`/api/share/${token}`);
+        const response = await fetch(`/api/share/${token}?session=${shareSessionId}`);
         const result = await response.json();
 
         if (result.success) {

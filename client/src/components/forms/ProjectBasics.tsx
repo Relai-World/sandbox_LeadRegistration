@@ -57,10 +57,10 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
     if (isDraftMode) {
       return;
     }
-    
+
     const hasValidProjectName = data.projectName && dropdownValues.projectNames.includes(data.projectName);
     const hasValidReraNumber = data.reraNumber && dropdownValues.reraNumbers.includes(data.reraNumber);
-    
+
     // Only fetch once - prefer project name if both are present
     if (hasValidProjectName) {
       fetchPropertyDetails(data.projectName, undefined, handlePropertyFetched);
@@ -85,24 +85,24 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
       // Store the raw input value for display (allows user to type freely)
       // Extract numeric value for conversion
       const numericValue = parseFloat(value.replace(/[^0-9.-]/g, ''));
-      
+
       if (value === '') {
         // Clear both values when input is empty
-        onUpdate({ 
+        onUpdate({
           totalLandArea: '',
           totalLandAreaSqmt: ''
         });
       } else if (!isNaN(numericValue) && numericValue > 0) {
         // Valid number - convert to acres and store both values
         const acres = sqmtToAcres(numericValue);
-        onUpdate({ 
+        onUpdate({
           totalLandArea: acres.toFixed(4), // Store converted acres value
           totalLandAreaSqmt: value // Store original input (may include "sqmt" text)
         });
       } else {
         // Partial input (e.g., user typing "2" or "25")
         // Store the input as-is for display, but don't convert yet
-        onUpdate({ 
+        onUpdate({
           totalLandArea: '',
           totalLandAreaSqmt: value
         });
@@ -120,17 +120,17 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
       if (!isNaN(numericValue) && numericValue > 0) {
         const openSpaceAcres = sqmtToAcres(numericValue);
         const totalLandAreaAcres = parseFloat(data.totalLandArea) || 0;
-        
+
         if (totalLandAreaAcres > 0) {
           const percentage = (openSpaceAcres / totalLandAreaAcres) * 100;
-          onUpdate({ 
+          onUpdate({
             openSpace: percentage.toFixed(2),
             openSpaceSqmt: numericValue.toString(), // Store original sqmt value
             openSpaceAcres: openSpaceAcres.toFixed(4) // Store converted acres value
           });
         } else {
           // Store values but don't calculate percentage yet
-          onUpdate({ 
+          onUpdate({
             openSpace: '',
             openSpaceSqmt: numericValue.toString(),
             openSpaceAcres: openSpaceAcres.toFixed(4)
@@ -149,7 +149,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
     if (isPRMKARERA && data.openSpaceSqmt && data.totalLandArea) {
       const openSpaceSqmt = parseFloat(data.openSpaceSqmt);
       const totalLandAreaAcres = parseFloat(data.totalLandArea);
-      
+
       if (!isNaN(openSpaceSqmt) && !isNaN(totalLandAreaAcres) && totalLandAreaAcres > 0) {
         const openSpaceAcres = sqmtToAcres(openSpaceSqmt);
         const percentage = (openSpaceAcres / totalLandAreaAcres) * 100;
@@ -214,7 +214,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
     // 1. All past dates (including present date) and up to 1 month from today → 'RTM'
     // 2. All past dates (including present date) and 1 to 6 months from today → 'About to RTM'
     // Note: Since past dates are covered by both conditions, we prioritize RTM for past dates up to 1 month
-    
+
     if (daysDiff <= oneMonthInDays) {
       // Past dates (including today) and up to 1 month from today → 'RTM'
       newStatus = 'RTM';
@@ -238,12 +238,12 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
   const formatDateInput = (value: string): string => {
     // Remove all non-digit characters
     const digits = value.replace(/\D/g, '');
-    
+
     // If empty or just 'RTM', return as is
     if (digits === '' || value.toUpperCase().includes('RTM')) {
       return value.toUpperCase() === 'RTM' ? 'RTM' : value;
     }
-    
+
     // Format as DD/MM/YYYY
     if (digits.length <= 2) {
       return digits;
@@ -261,10 +261,10 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
       onUpdate({ possessionDate: value.toUpperCase() === 'RTM' ? 'RTM' : '' });
       return;
     }
-    
+
     // Auto-format as user types
     const formatted = formatDateInput(value);
-    
+
     // If it's a complete date (DD/MM/YYYY), validate and store
     if (formatted.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
       const parsed = parseDDMMYYYY(formatted);
@@ -286,17 +286,17 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
     if (!data.possessionDate || data.possessionDate.toUpperCase() === 'RTM') {
       return '';
     }
-    
+
     // If already in DD/MM/YYYY format, convert to YYYY-MM-DD
     if (data.possessionDate.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
       return ddmmYYYYToYYYYMMDD(data.possessionDate);
     }
-    
+
     // If already in YYYY-MM-DD format, return as is
     if (data.possessionDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
       return data.possessionDate;
     }
-    
+
     // Try to parse and convert (using local date components to avoid timezone shifts)
     try {
       const date = new Date(data.possessionDate);
@@ -307,8 +307,8 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
       }
-    } catch {}
-    
+    } catch { }
+
     return '';
   };
 
@@ -317,17 +317,17 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
     if (!data.launchDate || data.launchDate.trim() === '') {
       return '';
     }
-    
+
     // If already in DD/MM/YYYY format, convert to YYYY-MM-DD
     if (data.launchDate.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
       return ddmmYYYYToYYYYMMDD(data.launchDate);
     }
-    
+
     // If already in YYYY-MM-DD format, return as is
     if (data.launchDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
       return data.launchDate;
     }
-    
+
     // Try to parse and convert (using local date components to avoid timezone shifts)
     try {
       const date = new Date(data.launchDate);
@@ -338,8 +338,8 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
       }
-    } catch {}
-    
+    } catch { }
+
     return '';
   };
 
@@ -349,7 +349,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
       onUpdate({ launchDate: '' });
       return;
     }
-    
+
     // Convert YYYY-MM-DD to DD/MM/YYYY format for storage
     const formatted = yyyymmddToDDMMYYYY(value);
     onUpdate({ launchDate: formatted });
@@ -361,7 +361,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
       onUpdate({ possessionDate: '' });
       return;
     }
-    
+
     // Convert YYYY-MM-DD to DD/MM/YYYY format for storage
     const formatted = yyyymmddToDDMMYYYY(value);
     onUpdate({ possessionDate: formatted });
@@ -385,10 +385,11 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
               emptyMessage="No projects found."
               disabled={isViewMode}
               error={!!errors.projectName}
+              strict={true}
             />
             {errors.projectName && <p className="text-red-500 text-xs mt-1">{errors.projectName}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="areaName">Area Name</Label>
             <Input
@@ -401,7 +402,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.areaName && <p className="text-red-500 text-xs mt-1">{errors.areaName}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="projectLocation">Project Location</Label>
             <Input
@@ -414,7 +415,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.projectLocation && <p className="text-red-500 text-xs mt-1">{errors.projectLocation}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="city">City</Label>
             <Autocomplete
@@ -429,7 +430,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="state">State</Label>
             <Autocomplete
@@ -444,7 +445,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.state && <p className="text-red-500 text-xs mt-1">{errors.state}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="builderName">Builder Name *</Label>
             <Autocomplete
@@ -459,7 +460,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.builderName && <p className="text-red-500 text-xs mt-1">{errors.builderName}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="reraNumber">RERA Number *</Label>
             <Autocomplete
@@ -471,10 +472,11 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
               emptyMessage="No RERA numbers found."
               disabled={isViewMode}
               error={!!errors.reraNumber}
+              strict={true}
             />
             {errors.reraNumber && <p className="text-red-500 text-xs mt-1">{errors.reraNumber}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="projectType">Project Type</Label>
             <Select onValueChange={(value) => handleInputChange('projectType', value)} value={data.projectType || ''} disabled={isViewMode}>
@@ -489,7 +491,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             </Select>
             {errors.projectType && <p className="text-red-500 text-xs mt-1">{errors.projectType}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="communityType">Community Type</Label>
             <Select onValueChange={(value) => handleInputChange('communityType', value)} value={data.communityType || ''} disabled={isViewMode}>
@@ -534,7 +536,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.totalLandArea && <p className="text-red-500 text-xs mt-1">{errors.totalLandArea}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="numberOfTowers">Number of Towers</Label>
             <Input
@@ -550,7 +552,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.numberOfTowers && <p className="text-red-500 text-xs mt-1">{errors.numberOfTowers}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="numberOfFloors">Number of Floors</Label>
             <Input
@@ -566,7 +568,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.numberOfFloors && <p className="text-red-500 text-xs mt-1">{errors.numberOfFloors}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="flatsPerFloor">Flats Per Floor</Label>
             <Input
@@ -582,7 +584,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.flatsPerFloor && <p className="text-red-500 text-xs mt-1">{errors.flatsPerFloor}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="totalUnits">Total Units</Label>
             <Input
@@ -598,7 +600,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.totalUnits && <p className="text-red-500 text-xs mt-1">{errors.totalUnits}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="openSpace">
               Open Space {isPRMKARERA ? '(sqmt)' : '(%)'}
@@ -641,7 +643,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             />
             {errors.launchDate && <p className="text-red-500 text-xs mt-1">{errors.launchDate}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="possessionDate">Possession Date</Label>
             {data.possessionDate === 'RTM' || data.possessionDate?.toUpperCase() === 'RTM' ? (
@@ -678,7 +680,7 @@ export const ProjectBasics: React.FC<ProjectBasicsProps> = ({ data, onUpdate, on
             )}
             {errors.possessionDate && <p className="text-red-500 text-xs mt-1">{errors.possessionDate}</p>}
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="constructionStatus">Construction Status</Label>
             <Select onValueChange={(value) => handleInputChange('constructionStatus', value)} value={data.constructionStatus || ''} disabled={isViewMode}>
