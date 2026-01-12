@@ -2389,19 +2389,66 @@ export async function registerRoutes(
         return res.status(503).json({ success: false, message: 'Database not available' });
       }
 
-      // Search for the token in client_Requirements.share_links array
-      // Fetch all records that might have share_links
-      const { data: records, error: fetchError } = await supabase
-        .from('client_Requirements')
-        .select('id, client_mobile, share_links, shortlisted_properties');
+      // 1. Try to find the record directly using JSON containment (fastest if column is JSONB)
+      // We wrap token in an array because share_links is an array of objects
+      let directMatch = null;
+      try {
+        const { data } = await supabase
+          .from('client_Requirements')
+          .select('id, client_mobile, share_links, shortlisted_properties')
+          .contains('share_links', JSON.stringify([{ token: token }]))
+          .maybeSingle();
+        directMatch = data;
+      } catch (err) {
+        console.log('Direct JSON search failed (likely column type mismatch), falling back to scan.');
+      }
 
-      if (fetchError) {
-        console.error('Error fetching client_Requirements:', fetchError);
-        return res.status(500).json({ success: false, message: 'Database error' });
+      let records: any[] = [];
+
+      if (directMatch) {
+        console.log('Token found via direct JSON search');
+        records = [directMatch];
+      } else {
+        console.log('Token not found via direct search, falling back to full scan...');
+
+        // 2. Fallback: Scan all records with pagination to bypass 1000 row limit
+        let page = 0;
+        const pageSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data: pageData, error: pageError } = await supabase
+            .from('client_Requirements')
+            .select('id, client_mobile, share_links, shortlisted_properties')
+            .range(page * pageSize, (page + 1) * pageSize - 1);
+
+          if (pageError || !pageData || pageData.length === 0) {
+            hasMore = false;
+          } else {
+            records = records.concat(pageData);
+            // Optimization: check if we found it in this batch before fetching more
+            // This avoids fetching the whole DB if we find it early in the 2nd page
+            const foundInBatch = pageData.some((r: any) => {
+              let sl = r.share_links;
+              if (typeof sl === 'string') {
+                try { sl = JSON.parse(sl); } catch (e) { return false; }
+              }
+              return Array.isArray(sl) && sl.some((l: any) => l.token === token);
+            });
+
+            if (foundInBatch) {
+              console.log('Token found in batch scan');
+              hasMore = false;
+            } else {
+              if (pageData.length < pageSize) hasMore = false; // End of data
+              page++;
+            }
+          }
+        }
       }
 
       console.log('Searching for token:', token);
-      console.log('Total records fetched:', records?.length || 0);
+      console.log('Total records checked:', records?.length || 0);
 
       // Find the share link with matching token
       let foundShareLink: any = null;
@@ -2432,7 +2479,7 @@ export async function registerRoutes(
       }
 
       if (!foundShareLink) {
-        return res.status(404).json({ success: false, message: 'Share link not found or expired' });
+        return res.status(404).json({ success: false, message: 'Share link not found or expired (scanned all records)' });
       }
 
       // Fetch property details from Supabase unified_data
